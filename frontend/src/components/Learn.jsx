@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import Sidebar from "./SideBar";
+import Sidebar from "./Sidebar";
 import ChatInterface from "./ChatInterface";
 import { courseTopics } from "../data/courseTopics";
 // import generateNewSubtopics from "../data/regenerateTopics";
