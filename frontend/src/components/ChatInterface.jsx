@@ -261,9 +261,13 @@ const ChatInterface = ({
                           {children}
                         </ol>
                       ),
+                      // --- FIX IS HERE ---
                       li: ({ children }) => (
-                        <li className="mb-2">{children}</li>
+                        <li className="mb-2 [&>p:first-of-type]:inline">
+                          {children}
+                        </li>
                       ),
+                      // --------------------
                       blockquote: ({ children }) => (
                         <blockquote className="border-l-4 border-gray-300 pl-4 italic my-4">
                           {children}
@@ -274,6 +278,21 @@ const ChatInterface = ({
                           {children}
                         </pre>
                       ),
+                      code: ({ inline, className, children, ...props }) => {
+                        const match = /language-(\w+)/.exec(className || "");
+                        return !inline ? (
+                          <code className="text-white" {...props}>
+                            {children}
+                          </code>
+                        ) : (
+                          <code
+                            className="bg-gray-200 text-black px-1 rounded"
+                            {...props}
+                          >
+                            {children}
+                          </code>
+                        );
+                      },
                     }}
                   >
                     {msg.text}
