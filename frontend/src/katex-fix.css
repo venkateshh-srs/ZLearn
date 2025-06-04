@@ -1,0 +1,21 @@
+@import 'katex/dist/katex.min.css';
+
+/* ---------- overrides ---------- */
+
+
+:where(.chat-root) .display {           /* adjust selector to your app */
+  display: flex !important;     
+  overflow: hidden !important;                   /* or grid / block, whatever you need */
+}
+
+/* Tweak margins on block formulas so they don’t shove content around */
+:where(.chat-root) .katex-display {
+  margin: 0.25rem 0;                    /* or just margin:0; */
+  text-align: left;                     /* optional, keeps math left-aligned */
+}
+
+/* Optional: keep KaTeX text colour in sync with Tailwind’s theme */
+.katex { color: theme('colors.gray.800'); }
+@media (prefers-color-scheme: dark) {
+  .katex { color: theme('colors.gray.100'); }
+}

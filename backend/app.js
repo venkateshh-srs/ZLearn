@@ -99,6 +99,7 @@ Your task is to interpret user prompts and return a structured course outline in
     // // console.log(JSON.parse(chatCompletion.choices[0].message.content));
 
     const aiResponse = JSON.parse(chatCompletion.choices[0].message.content);
+    console.log(aiResponse);
 
     if (aiResponse.success) {
       return {
@@ -142,21 +143,43 @@ Your task is to interpret user prompts and return a structured course outline in
 
 //user asks question-> take response from backend
 const askAI = async (messages, topic, topics) => {
-  // // console.log(messages, topic);
+  // console.log(subtopics);
+  console.log(topics);
+  const topicsNames = topics.map((topic) => topic.name);
+  const subtopics = topics.flatMap((topic) => topic.subtopics);
+  const subtopicsNames = subtopics.map((subtopic) => subtopic.name);
+  // console.log(subtopics);
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
-          content: `You are a helpful assistant. You are given a topic and a list of topics ${topics}. Your reply must be related to this ${topic} based on the topics given. If question is not related to this topic at all give reply that is not related to this topic name `,
+          content: `You are a helpful assistant.
+You are given the following:
+- A **current topic**: "${topic}"
+- A **list of topics**: ${topicsNames}
+- A **list of subtopics**: ${subtopicsNames}
+
+### Instructions:
+- Respond to the user's question **only if** it is related to the **current topic**, or if it matches any of the **topics** or **subtopics** listed.
+- If the question is **not related** to the current topic, or is **not found** in the topics or subtopics, respond with:
+  **"This is not related to the topic: ${topic}."**
+
+If there are any math equations in the question, then respond with this format:
+**Format your response using Markdown**. Use:
+- Inline math formulas with $...$
+- Block math formulas with $$...$$ 
+If there is any math equation only use the markdown I provided.
+format the output in nice markdown with line breaks between paragraphs and after each section and topic.
+`,
         },
         ...messages,
       ],
       store: true,
     });
     const result = completion.choices[0].message.content;
-    // // console.log(result);
+    console.log(result);
     return {
       success: true,
       message: result,

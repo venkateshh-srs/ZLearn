@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   BookOpen,
   RefreshCw,
@@ -25,7 +26,7 @@ const Sidebar = ({
   isThinking,
 }) => {
   const [openTopicIds, setOpenTopicIds] = useState(new Set());
-
+  const navigate = useNavigate();
   const toggleTopicAccordion = (topicId) => {
     if (isThinking) return;
     setOpenTopicIds((prev) => {
@@ -63,8 +64,12 @@ const Sidebar = ({
       >
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <BookOpen size={28} className="text-accent" />
+          <div className="flex items-center space-x-2 cursor-pointer">
+            <BookOpen
+              size={35}
+              className="text-accent"
+              onClick={() => navigate("/")}
+            />
             <p className="text-xl font-semibold text-dark-gray bg-transparent border-none focus:ring-0 p-1">
               {topicName}
             </p>

@@ -4,12 +4,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        "sidebar-bg": "#F7F7F8", // Example sidebar background
-        "main-bg": "#FFFFFF", // Example main content background
-        accent: "#3B82F6", // Example accent color (blue)
-        "light-gray": "#E5E7EB",
-        "medium-gray": "#9CA3AF",
-        "dark-gray": "#4B5563",
+        chat: "#000000", // Example main content background
       },
     },
   },

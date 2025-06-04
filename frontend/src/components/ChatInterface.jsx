@@ -1,6 +1,13 @@
 // src/ChatInterface.js
 import React, { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm"; // Added for GitHub Flavored Markdown
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import rehypeRaw from "rehype-raw"; // To allow HTML rendering, needed for KaTeX
+// KaTeX CSS
+import "katex/dist/katex.min.css";
+
 import { useNavigate } from "react-router-dom";
 import {
   Send,
@@ -104,7 +111,7 @@ const ChatInterface = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full max-h-full overflow-hidden bg-white">
       <div className="flex items-center justify-between p-4 border-b border-light-gray bg-sidebar-bg md:bg-white">
         <div className="flex items-center">
           <button
@@ -136,7 +143,7 @@ const ChatInterface = ({
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto space-y-4 p-4 md:p-8 sm:p-10 mb-4 pr-2 ">
+      <div className="flex-1 overflow-y-auto min-h-0 space-y-4 p-4 md:p-8 sm:p-10 mb-4 pr-2 relative bg-chat">
         {getInitialLLMMessage()}
         {messages.map((msg) => (
           <div
@@ -156,13 +163,13 @@ const ChatInterface = ({
             }`}
           >
             <div
-              className={`max-w-xs md:max-w-md lg:max-w-lg xl:max-w-2xl p-3 rounded-lg shadow ${
+              className={`max-w-xs md:max-w-md lg:max-w-lg xl:max-w-2xl p-3 rounded-lg shadow overflow-hidden ${
                 msg.sender === "user"
-                  ? "bg-accent text-white rounded-br-none"
+                  ? "bg-message-user text-gray-900 rounded-br-none border border-sky-100"
                   : msg.sender === "llm"
                   ? msg.text === "Generating new subtopics..." && msg.thinking
                     ? "bg-blue-100 border border-blue-300 text-blue-800 text-center w-full max-w-md mx-auto text-sm"
-                    : "bg-light-gray text-dark-gray rounded-bl-none"
+                    : "bg-message-llm text-dark-gray border border-gray-100 rounded-bl-none"
                   : msg.sender === "system" || msg.sender === "system_info" // Style for system messages
                   ? "bg-blue-100 border border-blue-300 text-blue-800 text-center w-full max-w-md mx-auto text-sm"
                   : ""
@@ -217,22 +224,56 @@ const ChatInterface = ({
                   </div>
                 ) : (
                   <ReactMarkdown
+                    remarkPlugins={[remarkMath, remarkGfm]}
+                    rehypePlugins={[rehypeKatex]}
                     components={{
-                      pre: ({ node, ...props }) => (
-                        <pre className="overflow-x-auto whitespace-pre rounded bg-gray-800 text-white p-4 text-sm">
-                          {props.children}
+                      h1: ({ node, ...props }) => (
+                        <h1 className="text-2xl font-bold my-4" {...props} />
+                      ),
+                      h2: ({ node, ...props }) => (
+                        <h2 className="text-xl font-bold my-3" {...props} />
+                      ),
+                      h3: ({ node, ...props }) => (
+                        <h3 className="text-lg font-bold my-2" {...props} />
+                      ),
+                      h4: ({ node, ...props }) => (
+                        <h4 className="text-base font-bold my-2" {...props} />
+                      ),
+                      h5: ({ node, ...props }) => (
+                        <h5 className="text-sm font-bold my-1" {...props} />
+                      ),
+                      h6: ({ node, ...props }) => (
+                        <h6 className="text-xs font-bold my-1" {...props} />
+                      ),
+                      p: ({ children }) => (
+                        <p className="mb-4 leading-relaxed">{children}</p>
+                      ),
+                      strong: ({ children }) => (
+                        <strong className="font-semibold">{children}</strong>
+                      ),
+                      ul: ({ children }) => (
+                        <ul className="list-disc list-inside my-4 pl-4">
+                          {children}
+                        </ul>
+                      ),
+                      ol: ({ children }) => (
+                        <ol className="list-decimal list-inside my-4 pl-4">
+                          {children}
+                        </ol>
+                      ),
+                      li: ({ children }) => (
+                        <li className="mb-2">{children}</li>
+                      ),
+                      blockquote: ({ children }) => (
+                        <blockquote className="border-l-4 border-gray-300 pl-4 italic my-4">
+                          {children}
+                        </blockquote>
+                      ),
+                      pre: ({ children }) => (
+                        <pre className="bg-black text-white p-4 rounded-md my-4 overflow-x-auto">
+                          {children}
                         </pre>
                       ),
-                      code: ({ node, inline, className, children, ...props }) =>
-                        inline ? (
-                          <code className="bg-gray-200 px-1 py-0.5 rounded text-sm">
-                            {children}
-                          </code>
-                        ) : (
-                          <code className={`text-sm ${className}`} {...props}>
-                            {children}
-                          </code>
-                        ),
                     }}
                   >
                     {msg.text}

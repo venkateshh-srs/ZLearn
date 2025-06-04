@@ -300,7 +300,7 @@ function Learn() {
     totalSubtopics > 0 ? (completedSubtopics.size / totalSubtopics) * 100 : 0;
 
   return (
-    <div className="flex h-screen bg-main-bg">
+    <div className="chat-root flex h-screen overflow-y- bg-main-bg">
       <Sidebar
         isOpen={sidebarOpen}
         toggleSidebar={toggleSidebar} // Pass the general toggleSidebar function

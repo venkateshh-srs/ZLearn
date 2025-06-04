@@ -1,4 +1,8 @@
 @import "tailwindcss";
+@import "katex/dist/katex.min.css";
+
+/* @import "katex/dist/katex.min.css"; */
+
 @theme {
   --color-sidebar-bg: #f7f7f8;
   --color-main-bg: #ffffff;
@@ -6,4 +10,7 @@
   --color-light-gray: #e5e7eb;
   --color-medium-gray: #9ca3af;
   --color-dark-gray: #4b5563;
+  --color-chat: #f9fafb;
+  --color-message-llm: #fff;
+  --color-message-user: #eff6ff;
 }
