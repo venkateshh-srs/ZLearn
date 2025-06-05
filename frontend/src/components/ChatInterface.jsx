@@ -3,10 +3,10 @@ import React, { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm"; // Added for GitHub Flavored Markdown
 import remarkMath from "remark-math";
+import "katex/dist/katex.min.css";
 import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw"; // To allow HTML rendering, needed for KaTeX
 // KaTeX CSS
-import "katex/dist/katex.min.css";
 
 import { useNavigate } from "react-router-dom";
 import {
@@ -109,6 +109,17 @@ const ChatInterface = ({
     // Optionally, send a message that quiz was closed
     // onSendMessage(`Quiz for "${activeQuizSubtopic}" closed.`, 'system_info');
   };
+  function replaceLatexInline(text) {
+    if (!text) return "";
+ text = text.replace(/\$\$\s*([\s\S]*?)\s*\$\$/g, (_, inner) => {
+   const cleaned = inner.replace(/\n+/g, " ").trim();
+   return `$$${cleaned}$$`;
+ });
+    return text.replace(/\\\((.+?)\\\)/g, (_, inner) => {
+      return `$${inner.trim()}$`;
+    });
+  }
+
 
   return (
     <div className="flex flex-col h-full max-h-full overflow-hidden bg-white">
@@ -252,17 +263,16 @@ const ChatInterface = ({
                         <strong className="font-semibold">{children}</strong>
                       ),
                       ul: ({ children }) => (
-                        <ul className="list-disc list-inside my-4 pl-4">
+                        <ul className="list-outside my-4 pl-4">
                           {children}
                         </ul>
                       ),
+
                       ol: ({ children }) => (
-                        <ol className="list-decimal list-inside my-4 pl-4">
-                          {children}
-                        </ol>
+                        <ol className="list-inside my-4 pl-2">{children}</ol>
                       ),
                       li: ({ children }) => (
-                        <li className="mb-2">{children}</li>
+                        <li className=" mb-2">{children}</li>
                       ),
                       blockquote: ({ children }) => (
                         <blockquote className="border-l-4 border-gray-300 pl-4 italic my-4">
@@ -270,13 +280,13 @@ const ChatInterface = ({
                         </blockquote>
                       ),
                       pre: ({ children }) => (
-                        <pre className="bg-black text-white p-4 rounded-md my-4 overflow-x-auto">
+                        <pre className="bg-gray-700 text-white p-4 rounded-md my-4 overflow-x-auto">
                           {children}
                         </pre>
                       ),
                     }}
                   >
-                    {msg.text}
+                    {replaceLatexInline(msg.text)}
                   </ReactMarkdown>
                 )}
               </div>

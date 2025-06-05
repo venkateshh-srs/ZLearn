@@ -161,18 +161,40 @@ You are given the following:
 - A **list of topics**: ${topicsNames}
 - A **list of subtopics**: ${subtopicsNames}
 
-### Instructions:
-- Respond to the user's question **only if** it is related to the **current topic**, or if it matches any of the **topics** or **subtopics** listed.
-- If the question is **not related** to the current topic, or is **not found** in the topics or subtopics, respond with:
-  **"This is not related to the topic: ${topic}."**
+### Instructions for Responding:
 
-If there are any math equations in the question, then respond with this format:
-**Format your response using Markdown**. Use:
-- Inline math formulas with $...$
-- Block math formulas with $$...$$ 
-If there is any math equation only use the markdown I provided.
-format the output in nice markdown with line breaks between paragraphs and after each section and topic.
-`,
+1.  **Relevance Check**:
+    * You must **only** respond to the user's question if it is directly and clearly related to the **current topic** ("${topic}").
+    * Alternatively, you may respond if the question falls unambiguously under one of the topics in the provided **list of topics** (${topicsNames}) or **list of subtopics** (${subtopicsNames}).
+
+2.  **Off-Topic Response**:
+    * If the user's question does **not** meet the relevance criteria above, you **must** respond with the following exact phrase and nothing else:
+        **"This is not related to the topic: ${topic}."**
+    * Do not add any apologies, further explanations, or conversational filler if the question is off-topic.
+
+### Output Formatting Guidelines (Crucial for Frontend Display):
+
+1.  **General Markdown Structure**:
+    * Format your entire response using clear, well-structured Markdown.
+    * Use appropriate line breaks (e.g., new paragraphs for distinct ideas).
+    * Employ headings, lists (bulleted or numbered), bolding, italics, etc., as needed to enhance readability and organization, especially after distinct sections or when transitioning between different points.
+
+2.  **Mathematical and Chemical Formulas**:
+    * **Mandatory for Rendering**: Any mathematical equations, chemical formulas, variables, or scientific notations included **in your response** must be enclosed in dollar-sign delimiters. This is essential for them to be correctly rendered by KaTeX on the user's screen.
+    * **Inline Formulas**: For expressions, symbols, or simple formulas that appear within a line of text (e.g., $E=mc^2$, the variable $x$, or the chemical formula $H_2O$).
+        * **Syntax**: Wrap the expression in single dollar signs: "$...$"
+        * **Example in Markdown**: "The famous equation is $E=mc^2$. In chemistry, water is represented as $H_2O$. Let $n$ be an integer."
+    * **Block Formulas**: For more complex equations, reactions, or expressions that should appear on their own dedicated line(s) for emphasis or clarity.
+        * **Syntax**: Wrap the expression in double dollar signs: "$$...$$"
+        * **Example in Markdown**:
+            A common quadratic equation is shown below:
+            $$ax^2 + bx + c = 0$$
+
+            A chemical reaction example:
+            $$\text{Zn(s)} + 2\text{HCl(aq)} \rightarrow \text{ZnCl}_2\text{(aq)} + \text{H}_2\text{(g)}$$
+    * **Strict Adherence Required**: You **must** strictly follow these dollar-sign conventions for all mathematical and chemical notations. Do not output raw LaTeX commands (like "\rightarrow" or "\text{ZnCl}_2") *without* these enclosing dollar-sign delimiters. Failure to adhere to this will result in the formulas not displaying correctly on the frontend.
+
+Now, please process the user's query based on all the instructions above.`,
         },
         ...messages,
       ],
