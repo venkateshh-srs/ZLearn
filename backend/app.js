@@ -207,7 +207,7 @@ const askAI = async (messages, topic, topics) => {
                 - Use headings, bold, italics, lists, and clear paragraph spacing.
                 - Structure longer answers for clarity and readability.
 
-                **Math & Chemistry Rendering (for Frontend)**:
+                **Any equation or formula should be rendered in the following format (for Frontend)**:
                 - Use single dollar signs for **inline** math/chemistry: e.g., "$E=mc^2$"
                 - Use double dollar signs for **block** math/chemistry:
                   
