@@ -148,7 +148,7 @@ const askAI = async (messages, topic, topics) => {
   const topicsNames = topics.map((topic) => topic.name);
   const subtopics = topics.flatMap((topic) => topic.subtopics);
   const subtopicsNames = subtopics.map((subtopic) => subtopic.name);
-  // console.log(subtopics);
+  console.log(subtopicsNames);
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -164,7 +164,7 @@ You are given the following:
 ### Instructions for Responding:
 
 1.  **Relevance Check**:
-    * You must **only** respond to the user's question if it is directly and clearly related to the **current topic** ("${topic}").
+    * You must **only** respond to the user's question if it is directly and clearly related to the **current topic** ("${topic}" or "${subtopicsNames}" or "${topicsNames}").
     * Alternatively, you may respond if the question falls unambiguously under one of the topics in the provided **list of topics** (${topicsNames}) or **list of subtopics** (${subtopicsNames}).
 
 2.  **Off-Topic Response**:

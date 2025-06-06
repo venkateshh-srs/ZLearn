@@ -111,15 +111,14 @@ const ChatInterface = ({
   };
   function replaceLatexInline(text) {
     if (!text) return "";
- text = text.replace(/\$\$\s*([\s\S]*?)\s*\$\$/g, (_, inner) => {
-   const cleaned = inner.replace(/\n+/g, " ").trim();
-   return `$$${cleaned}$$`;
- });
+    text = text.replace(/\$\$\s*([\s\S]*?)\s*\$\$/g, (_, inner) => {
+      const cleaned = inner.replace(/\n+/g, " ").trim();
+      return `$$${cleaned}$$`;
+    });
     return text.replace(/\\\((.+?)\\\)/g, (_, inner) => {
       return `$${inner.trim()}$`;
     });
   }
-
 
   return (
     <div className="flex flex-col h-full max-h-full overflow-hidden bg-white">
@@ -205,7 +204,7 @@ const ChatInterface = ({
                   </div>
                 )}
               <div
-                className={`text-sm md:text-[15.3px] break-words text-justify gap-2 ${
+                className={`text-sm md:text-[15.3px] break-words gap-2 ${
                   msg.sender === "system" ||
                   msg.sender === "system_info" ||
                   (msg.text === "Generating new subtopics..." &&
@@ -263,26 +262,53 @@ const ChatInterface = ({
                         <strong className="font-semibold">{children}</strong>
                       ),
                       ul: ({ children }) => (
-                        <ul className="list-outside my-4 pl-4">
+                        <ul className="list-outside my-4 pl-4 list-disc">
                           {children}
                         </ul>
                       ),
-
                       ol: ({ children }) => (
-                        <ol className="list-inside my-4 pl-2">{children}</ol>
+                        <ol className="list-inside my-4 pl-2 list-decimal">
+                          {children}
+                        </ol>
                       ),
                       li: ({ children }) => (
-                        <li className=" mb-2">{children}</li>
+                        <li className="mb-2">{children}</li>
                       ),
                       blockquote: ({ children }) => (
-                        <blockquote className="border-l-4 border-gray-300 pl-4 italic my-4">
+                        <blockquote className="border-l-4 border-gray-300 pl-4 italic my-4 text-gray-600">
                           {children}
                         </blockquote>
                       ),
                       pre: ({ children }) => (
-                        <pre className="bg-gray-700 text-white p-4 rounded-md my-4 overflow-x-auto">
+                        <pre className="bg-gray-800 text-white p-4 rounded-md my-4 overflow-x-auto text-sm">
                           {children}
                         </pre>
+                      ),
+                      table: ({ children }) => (
+                        <div className="overflow-x-auto my-4">
+                          <table className="min-w-full border border-gray-300">
+                            {children}
+                          </table>
+                        </div>
+                      ),
+                      thead: ({ children }) => (
+                        <thead className="bg-gray-100 border-b border-gray-300">
+                          {children}
+                        </thead>
+                      ),
+                      tbody: ({ children }) => <tbody>{children}</tbody>,
+                      tr: ({ children }) => (
+                        <tr className="border-b border-gray-200">{children}</tr>
+                      ),
+                      th: ({ children }) => (
+                        <th className="px-4 py-2 text-left font-semibold text-sm text-gray-700">
+                          {children}
+                        </th>
+                      ),
+                      td: ({ children }) => (
+                        <td className="px-4 py-2 text-sm text-gray-800">
+                          {children}
+                        </td>
                       ),
                     }}
                   >
