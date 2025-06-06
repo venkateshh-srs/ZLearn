@@ -79,7 +79,7 @@ Your task is to interpret user prompts and return a structured course outline in
 2. If the user input is clear and valid, set "success": true and generate:
    - "title": a cleaned-up course title.
    - "message": a short confirmation message (e.g., "Course outline generated successfully.").
-   - "data": an array of 2-5 topic objects, each with 2-5 subtopics based on the topic.
+   - "data": an array of 2-5 topic objects, each with 2-5 subtopics based on the topic and if there is need of 3rd level hierarchy then add it but not more than 3 levels. Please ensure you generate at least 3 topics and subtopics.
 
 3. If the user input is vague, harmful, inappropriate, or unsuitable for a course, set "success": false, and provide:
    - "title": a cleaned-up version of the user prompt.
@@ -140,6 +140,25 @@ Your task is to interpret user prompts and return a structured course outline in
     }
   }
 }
+const getAllSubtopicNames = (topics) => {
+  const leafNames = [];
+
+  for (const topic of topics) {
+    for (const subtopic of topic?.subtopics) {
+      if (subtopic?.subtopics?.length > 0) {
+        // If subtopic has sub-subtopics, collect those
+        for (const subSubtopic of subtopic?.subtopics) {
+          leafNames.push(subSubtopic?.name);
+        }
+      } else {
+        // If subtopic is a leaf itself
+        leafNames.push(subtopic?.name);
+      }
+    }
+  }
+  console.log(leafNames);
+  return leafNames;
+};
 
 //user asks question-> take response from backend
 const askAI = async (messages, topic, topics) => {
@@ -148,6 +167,7 @@ const askAI = async (messages, topic, topics) => {
   const topicsNames = topics.map((topic) => topic.name);
   const subtopics = topics.flatMap((topic) => topic.subtopics);
   const subtopicsNames = subtopics.map((subtopic) => subtopic.name);
+  const allSubtopicsNames = getAllSubtopicNames(topics);
   console.log(subtopicsNames);
   try {
     const completion = await openai.chat.completions.create({
@@ -156,50 +176,60 @@ const askAI = async (messages, topic, topics) => {
         {
           role: "system",
           content: `You are a helpful assistant.
-You are given the following:
-- A **current topic**: "${topic}"
-- A **list of topics**: ${topicsNames}
-- A **list of subtopics**: ${subtopicsNames}
 
-### Instructions for Responding:
+                You are given the following context:
+                - A **current topic**: "${topic}"
+                - A **list of topics**: ${topicsNames}
+                - A **list of subtopics**: ${subtopicsNames}
+                - A **list of all subtopics**: ${allSubtopicsNames}
 
-1.  **Relevance Check**:
-    * You must **only** respond to the user's question if it is directly and clearly related to the **current topic** ("${topic}" or "${subtopicsNames}" or "${topicsNames}").
-    * Alternatively, you may respond if the question falls unambiguously under one of the topics in the provided **list of topics** (${topicsNames}) or **list of subtopics** (${subtopicsNames}).
+                The user might also select a phrase or sentence from previous messages and ask you to elaborate on it, give an example, or provide an analogy — even if it’s unrelated to the topic.
 
-2.  **Off-Topic Response**:
-    * If the user's question does **not** meet the relevance criteria above, you **must** respond with the following exact phrase and nothing else:
-        **"This is not related to the topic: ${topic}."**
-    * Do not add any apologies, further explanations, or conversational filler if the question is off-topic.
+                ---
 
-### Output Formatting Guidelines (Crucial for Frontend Display):
+                ### 🔍 Relevance Rules
 
-1.  **General Markdown Structure**:
-    * Format your entire response using clear, well-structured Markdown.
-    * Use appropriate line breaks (e.g., new paragraphs for distinct ideas).
-    * Employ headings, lists (bulleted or numbered), bolding, italics, etc., as needed to enhance readability and organization, especially after distinct sections or when transitioning between different points.
+                1. **Respond if any of these are true**:
+                  - The user’s query is clearly related to the **current topic**: "${topic}"
+                  - The query is related to one of the **topics** or **subtopics** or **all subtopics** in the lists provided.
+                  - The user has selected a **specific piece of text** and asked for **elaboration**, an **example**, or an **analogy** related to that text.
+                  -Provide an example whenever possible and when the user asks to explain a topic in the "all subtopics" list.
 
-2.  **Mathematical and Chemical Formulas**:
-    * **Mandatory for Rendering**: Any mathematical equations, chemical formulas, variables, or scientific notations included **in your response** must be enclosed in dollar-sign delimiters. This is essential for them to be correctly rendered by KaTeX on the user's screen.
-    * **Inline Formulas**: For expressions, symbols, or simple formulas that appear within a line of text (e.g., $E=mc^2$, the variable $x$, or the chemical formula $H_2O$).
-        * **Syntax**: Wrap the expression in single dollar signs: "$...$"
-        * **Example in Markdown**: "The famous equation is $E=mc^2$. In chemistry, water is represented as $H_2O$. Let $n$ be an integer."
-    * **Block Formulas**: For more complex equations, reactions, or expressions that should appear on their own dedicated line(s) for emphasis or clarity.
-        * **Syntax**: Wrap the expression in double dollar signs: "$$...$$"
-        * **Example in Markdown**:
-            A common quadratic equation is shown below:
-            $$ax^2 + bx + c = 0$$
+                2. **Only if none of the above apply**, reply with:
+                  **"This is not related to the topic: ${topic}."**
+                  Do **not** include anything else — no apologies or extra explanation.
 
-            A chemical reaction example:
-            $$\text{Zn(s)} + 2\text{HCl(aq)} \rightarrow \text{ZnCl}_2\text{(aq)} + \text{H}_2\text{(g)}$$
-    * **Strict Adherence Required**: You **must** strictly follow these dollar-sign conventions for all mathematical and chemical notations. Do not output raw LaTeX commands (like "\rightarrow" or "\text{ZnCl}_2") *without* these enclosing dollar-sign delimiters. Failure to adhere to this will result in the formulas not displaying correctly on the frontend.
+                ---
 
-Now, please process the user's query based on all the instructions above.`,
+                ### 🧾 Output Formatting Guidelines
+
+                **Use Markdown formatting.**
+                - Use headings, bold, italics, lists, and clear paragraph spacing.
+                - Structure longer answers for clarity and readability.
+
+                **Math & Chemistry Rendering (for Frontend)**:
+                - Use single dollar signs for **inline** math/chemistry: e.g., "$E=mc^2$"
+                - Use double dollar signs for **block** math/chemistry:
+                  
+                  $$
+                  ax^2 + bx + c = 0
+                  $$
+
+                  $$
+                  \\text{Zn(s)} + 2\\text{HCl(aq)} \\rightarrow \\text{ZnCl}_2\\text{(aq)} + \\text{H}_2\\text{(g)}
+                  $$
+
+                **Strictly follow these rules. Do not write raw LaTeX without enclosing it in dollar signs.**
+
+                ---
+
+                Now, process the user query according to these updated rules.`,
         },
         ...messages,
       ],
       store: true,
     });
+
     const result = completion.choices[0].message.content;
     console.log(result);
     return {

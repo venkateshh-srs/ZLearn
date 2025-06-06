@@ -90,6 +90,7 @@ function Learn() {
   };
   const handleSubtopicSelect = async (topicId, subtopicId, subtopicName) => {
     setIsThinking(true);
+    toggleSidebar();
     setCurrentChat({ topicId, subtopicId, subtopicName });
 
     const userMessage = {
@@ -292,10 +293,22 @@ function Learn() {
     }
   };
 
-  const totalSubtopics = topics.reduce(
-    (acc, topic) => acc + topic.subtopics.length,
-    0
+const totalSubtopics = topics.reduce((acc, topic) => {
+  return (
+    acc +
+    topic.subtopics.reduce((subAcc, subtopic) => {
+      if (subtopic?.subtopics?.length > 0) {
+        // Count only the number of sub-subtopics
+        return subAcc + subtopic?.subtopics?.length;
+      } else {
+        // Count the subtopic itself
+        return subAcc + 1;
+      }
+    }, 0)
   );
+}, 0);
+
+
   const progress =
     totalSubtopics > 0 ? (completedSubtopics.size / totalSubtopics) * 100 : 0;
 

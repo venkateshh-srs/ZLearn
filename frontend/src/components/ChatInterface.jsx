@@ -1,13 +1,11 @@
 // src/ChatInterface.js
 import React, { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm"; // Added for GitHub Flavored Markdown
+import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import "katex/dist/katex.min.css";
 import rehypeKatex from "rehype-katex";
-import rehypeRaw from "rehype-raw"; // To allow HTML rendering, needed for KaTeX
-// KaTeX CSS
-
+import rehypeRaw from "rehype-raw";
 import { useNavigate } from "react-router-dom";
 import {
   Send,
@@ -21,7 +19,8 @@ import {
   Home,
   Loader,
 } from "lucide-react";
-import QuizComponent from "./Quiz"; // Import the new QuizComponent
+import QuizComponent from "./Quiz";
+import TextSelectionMenu from "./TextSelectionMenu"; // Import the new component
 
 const ChatInterface = ({
   messages,
@@ -34,9 +33,9 @@ const ChatInterface = ({
 }) => {
   const [inputValue, setInputValue] = useState("");
   const messagesEndRef = useRef(null);
+  const chatContainerRef = useRef(null); // Create a ref for the chat container
   const navigate = useNavigate();
 
-  // State for inline Quiz
   const [isQuizActive, setIsQuizActive] = useState(false);
   const [activeQuizSubtopic, setActiveQuizSubtopic] = useState("");
 
@@ -44,7 +43,7 @@ const ChatInterface = ({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  useEffect(scrollToBottom, [messages, isQuizActive]); // Scroll to bottom if quiz appears/disappears too
+  useEffect(scrollToBottom, [messages, isQuizActive]);
 
   const handleSend = () => {
     if (inputValue.trim() && !isThinking) {
@@ -59,9 +58,21 @@ const ChatInterface = ({
     }
   };
 
+  // Handler for actions from the text selection menu
+  const handleTextSelectionAction = (action, selectedText) => {
+    let prompt = "";
+    if (action === "analogy") {
+      prompt = `Explain "${selectedText}" with an analogy.`;
+    } else if (action === "elaborate") {
+      prompt = `Elaborate on "${selectedText}".`;
+    } else if (action === "example") {
+      prompt = `Give me an example of "${selectedText}".`;
+    }
+    onSendMessage(prompt);
+  };
+
   const handleHomeNavigation = () => {
     navigate("/");
-    // // console.log("Navigate to Home");
   };
 
   const getInitialLLMMessage = () => {
@@ -71,7 +82,6 @@ const ChatInterface = ({
       !isQuizActive &&
       !isThinking
     ) {
-      // Hide if quiz is active
       return (
         <div className="p-4 my-4 bg-blue-50 border border-blue-300 rounded-lg text-center text-l">
           <p className="text-sky-800">
@@ -91,24 +101,18 @@ const ChatInterface = ({
     return null;
   };
 
-  // Handler for "Take Quiz" button
   const handleTakeQuiz = () => {
     if (currentSubtopicName && !isThinking) {
       setActiveQuizSubtopic(currentSubtopicName);
       setIsQuizActive(true);
-      // Optionally, send a message to log this action
-      // onSendMessage(`Starting a quiz for "${currentSubtopicName}".`, 'system_info');
-      // Or let the quiz appearance be the primary feedback.
-      // For now, let's also disable regular quick actions when quiz is active.
     }
   };
 
   const handleQuizClose = () => {
     setIsQuizActive(false);
     setActiveQuizSubtopic("");
-    // Optionally, send a message that quiz was closed
-    // onSendMessage(`Quiz for "${activeQuizSubtopic}" closed.`, 'system_info');
   };
+
   function replaceLatexInline(text) {
     if (!text) return "";
     text = text.replace(/\$\$\s*([\s\S]*?)\s*\$\$/g, (_, inner) => {
@@ -121,8 +125,14 @@ const ChatInterface = ({
   }
 
   return (
-    <div className="flex flex-col h-full max-h-full overflow-hidden bg-white">
-      <div className="flex items-center justify-between p-4 border-b border-light-gray bg-sidebar-bg md:bg-white">
+    <div className="flex flex-col h-full max-h-full overflow-hidden bg-white z-1">
+      {/* Add the TextSelectionMenu component here */}
+      <TextSelectionMenu
+        onAction={handleTextSelectionAction}
+        chatContainerRef={chatContainerRef}
+      />
+
+      <div className="flex items-center justify-between p-4 border-b border-light-gray bg-sidebar-bg md:bg-white z-10">
         <div className="flex items-center">
           <button
             onClick={toggleSidebar}
@@ -153,7 +163,11 @@ const ChatInterface = ({
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto min-h-0 space-y-4 p-4 md:p-8 sm:p-10 mb-4 pr-2 relative bg-chat">
+      {/* Attach the ref to the chat container */}
+      <div
+        ref={chatContainerRef}
+        className="flex-1 overflow-y-auto min-h-0 space-y-4 p-4 md:p-8 sm:p-10 mb-4 pr-2 relative bg-chat"
+      >
         {getInitialLLMMessage()}
         {messages.map((msg) => (
           <div
@@ -180,7 +194,7 @@ const ChatInterface = ({
                   ? msg.text === "Generating new subtopics..." && msg.thinking
                     ? "bg-blue-100 border border-blue-300 text-blue-800 text-center w-full max-w-md mx-auto text-sm"
                     : "bg-message-llm text-dark-gray border border-gray-100 rounded-bl-none"
-                  : msg.sender === "system" || msg.sender === "system_info" // Style for system messages
+                  : msg.sender === "system" || msg.sender === "system_info"
                   ? "bg-blue-100 border border-blue-300 text-blue-800 text-center w-full max-w-md mx-auto text-sm"
                   : ""
               }`}
@@ -222,9 +236,7 @@ const ChatInterface = ({
                         className="animate-spin text-dark-gray mr-2"
                       />
                     )}
-
                     <span>{msg.text}</span>
-
                     {msg.text !== "Generating new subtopics..." && (
                       <Loader
                         size={16}
@@ -244,10 +256,10 @@ const ChatInterface = ({
                         <h2 className="text-xl font-bold my-3" {...props} />
                       ),
                       h3: ({ node, ...props }) => (
-                        <h3 className="text-lg font-bold my-2" {...props} />
+                        <h3 className="text-lg font-bold my-1" {...props} />
                       ),
                       h4: ({ node, ...props }) => (
-                        <h4 className="text-base font-bold my-2" {...props} />
+                        <h4 className="text-base font-bold my-1" {...props} />
                       ),
                       h5: ({ node, ...props }) => (
                         <h5 className="text-sm font-bold my-1" {...props} />
@@ -256,7 +268,7 @@ const ChatInterface = ({
                         <h6 className="text-xs font-bold my-1" {...props} />
                       ),
                       p: ({ children }) => (
-                        <p className="mb-4 leading-relaxed">{children}</p>
+                        <p className="mb-2 leading-relaxed">{children}</p>
                       ),
                       strong: ({ children }) => (
                         <strong className="font-semibold">{children}</strong>
@@ -267,7 +279,7 @@ const ChatInterface = ({
                         </ul>
                       ),
                       ol: ({ children }) => (
-                        <ol className="list-inside my-4 pl-2 list-decimal">
+                        <ol className="my-4 pl-6 list-decimal">
                           {children}
                         </ol>
                       ),
@@ -322,11 +334,8 @@ const ChatInterface = ({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Conditionally rendered Quiz Component */}
       {isQuizActive && activeQuizSubtopic && (
         <div className="px-4 md:px-6">
-          {" "}
-          {/* Wrapper for the quiz card */}
           <QuizComponent
             subtopicName={activeQuizSubtopic}
             onClose={handleQuizClose}
@@ -335,9 +344,8 @@ const ChatInterface = ({
         </div>
       )}
 
-      {/* Quick actions (conditionally rendered AND not if quiz is active) */}
       {isTopicSelected && messages.length > 0 && !isQuizActive && (
-        <div className="mb-3 flex flex-wrap gap-2 items-center px-4 md:px-6 ">
+        <div className="mb-3 flex flex-wrap gap-2 items-center px-4 md:px-6 z-10">
           <span className="text-sm text-medium-gray mr-1">Quick actions:</span>
           {[
             { type: "clarify", text: "Clarify", icon: HelpCircle },
@@ -372,8 +380,7 @@ const ChatInterface = ({
         </div>
       )}
 
-      {/* Input area - disabled if quiz is active */}
-      <div className="border-t border-light-gray pt-4 px-4 md:px-6 pb-4">
+      <div className="border-t border-light-gray pt-4 px-4 md:px-6 pb-4 z-10">
         <div className="flex items-center gap-2 bg-white border border-light-gray rounded-lg shadow-sm">
           <div className="relative w-full">
             <input

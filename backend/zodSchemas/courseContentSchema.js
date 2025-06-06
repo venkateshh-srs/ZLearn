@@ -1,14 +1,17 @@
 import { z } from "zod";
 
-const SubtopicSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-});
+const SubtopicSchema = z.lazy(() =>
+  z.object({
+    id: z.string(),
+    name: z.string(),
+    subtopics: z.array(SubtopicSchema), // required, can be empty
+  })
+);
 
 const TopicSchema = z.object({
   id: z.string(),
   name: z.string(),
-  subtopics: z.array(SubtopicSchema),
+  subtopics: z.array(SubtopicSchema), // required, can be empty
 });
 
 const courseContentSchema = z.object({
