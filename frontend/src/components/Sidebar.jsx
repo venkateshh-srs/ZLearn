@@ -18,6 +18,7 @@ const SubtopicItem = ({
   completedSubtopics,
   toggleAccordion,
   openTopicIds,
+  isZQuizActive,
 }) => {
   const hasSubSubtopics = subtopic.subtopics && subtopic.subtopics.length > 0;
   const isSubtopicOpen = openTopicIds.has(subtopic.id);
@@ -31,7 +32,7 @@ const SubtopicItem = ({
           className={`w-full flex items-center justify-between text-left p-2.5 rounded-md hover:bg-light-gray focus:outline-none focus:bg-light-gray transition-colors duration-150 ${
             isThinking ? "opacity-70 cursor-not-allowed" : ""
           }`}
-          disabled={isThinking}
+          disabled={isThinking || isZQuizActive}
         >
           <span className="font-medium text-sm text-dark-gray whitespace-nowrap">
             {subtopic.name}
@@ -58,7 +59,7 @@ const SubtopicItem = ({
                 className={`w-full flex items-center space-x-2.5 p-2 rounded-md text-left text-sm hover:bg-light-gray focus:outline-none focus:bg-light-gray transition-colors duration-150 ${
                   isThinking ? "opacity-70 cursor-not-allowed" : ""
                 }`}
-                disabled={isThinking}
+                disabled={isThinking || isZQuizActive}
               >
                 {completedSubtopics.has(subSubtopic.id) ? (
                   <CheckCircle size={16} className="text-accent" />
@@ -84,7 +85,7 @@ const SubtopicItem = ({
       className={`w-full flex items-center space-x-2.5 p-2 rounded-md text-left text-sm hover:bg-light-gray focus:outline-none focus:bg-light-gray transition-colors duration-150 ${
         isThinking ? "opacity-70 cursor-not-allowed" : ""
       }`}
-      disabled={isThinking}
+      disabled={isThinking || isZQuizActive}
     >
       {completedSubtopics.has(subtopic.id) ? (
         <CheckCircle size={16} className="text-accent" />
@@ -112,8 +113,9 @@ const Sidebar = ({
   totalSubtopics,
   isGenerating,
   isThinking,
+  isZQuizActive,
 }) => {
-  const [openTopicIds, setOpenTopicIds] = useState(new Set([])); 
+  const [openTopicIds, setOpenTopicIds] = useState(new Set([]));
   const navigate = useNavigate();
 
   const toggleAccordion = (id) => {
@@ -141,7 +143,7 @@ const Sidebar = ({
 
   return (
     <>
-      {console.log(topics)}
+      {console.log(isZQuizActive)}
       {isOpen && (
         <div
           className="fixed inset-0 z-30 bg-black opacity-50 md:hidden"
@@ -169,10 +171,12 @@ const Sidebar = ({
             <button
               onClick={!isThinking ? onRegenerate : undefined}
               className={`text-gray-500 hover:text-gray-800 ${
-                isThinking ? "opacity-50 cursor-not-allowed" : ""
+                isThinking || isZQuizActive
+                  ? "opacity-50 cursor-not-allowed"
+                  : ""
               }`}
               title="Regenerate Topics"
-              disabled={isGenerating || isThinking}
+              disabled={isGenerating || isThinking || isZQuizActive}
             >
               <RefreshCw
                 size={20}
@@ -206,9 +210,11 @@ const Sidebar = ({
                 <button
                   onClick={() => toggleAccordion(topic.id)}
                   className={`w-full flex items-center justify-between text-left p-2.5 rounded-md hover:bg-gray-100 focus:outline-none focus:bg-gray-100 transition-colors duration-150 ${
-                    isThinking ? "opacity-70 cursor-not-allowed" : ""
+                    isThinking || isZQuizActive
+                      ? "opacity-70 cursor-not-allowed"
+                      : ""
                   }`}
-                  disabled={isThinking}
+                  disabled={isThinking || isZQuizActive}
                 >
                   <span className="font-medium text-sm text-gray-700 whitespace-nowrap">
                     {topic.name}
@@ -231,6 +237,7 @@ const Sidebar = ({
                         completedSubtopics={completedSubtopics}
                         toggleAccordion={toggleAccordion}
                         openTopicIds={openTopicIds}
+                        isZQuizActive={isZQuizActive}
                       />
                     ))}
                   </div>

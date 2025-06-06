@@ -30,6 +30,8 @@ const ChatInterface = ({
   mainTopicName,
   toggleSidebar,
   isThinking,
+  isZQuizActive,
+  setIsZQuizActive,
 }) => {
   const [inputValue, setInputValue] = useState("");
   const messagesEndRef = useRef(null);
@@ -60,6 +62,11 @@ const ChatInterface = ({
 
   // Handler for actions from the text selection menu
   const handleTextSelectionAction = (action, selectedText) => {
+    console.log(isQuizActive);
+    if (isQuizActive) {
+      return;
+    }
+
     let prompt = "";
     if (action === "analogy") {
       prompt = `Explain "${selectedText}" with an analogy.`;
@@ -105,11 +112,13 @@ const ChatInterface = ({
     if (currentSubtopicName && !isThinking) {
       setActiveQuizSubtopic(currentSubtopicName);
       setIsQuizActive(true);
+      setIsZQuizActive(true);
     }
   };
 
   const handleQuizClose = () => {
     setIsQuizActive(false);
+    setIsZQuizActive(false);
     setActiveQuizSubtopic("");
   };
 
@@ -118,6 +127,14 @@ const ChatInterface = ({
     text = text.replace(/\$\$\s*([\s\S]*?)\s*\$\$/g, (_, inner) => {
       const cleaned = inner.replace(/\n+/g, " ").trim();
       return `$$${cleaned}$$`;
+    });
+    text = text.replace(/\\\[([\s\S]*?)\\\]/g, (match, inner) => {
+      const cleanedInner = inner.trim();
+      return `$$${cleanedInner}$$`;
+    });
+    text = text.replace(/\\\((.*?)\\\)/g, (match, inner) => {
+      const cleanedInner = inner.trim();
+      return `$${cleanedInner}$`;
     });
     return text.replace(/\\\((.+?)\\\)/g, (_, inner) => {
       return `$${inner.trim()}$`;
@@ -130,6 +147,7 @@ const ChatInterface = ({
       <TextSelectionMenu
         onAction={handleTextSelectionAction}
         chatContainerRef={chatContainerRef}
+        isQuizActive={isQuizActive}
       />
 
       <div className="flex items-center justify-between p-4 border-b border-light-gray bg-sidebar-bg md:bg-white z-10">
@@ -279,9 +297,7 @@ const ChatInterface = ({
                         </ul>
                       ),
                       ol: ({ children }) => (
-                        <ol className="my-4 pl-6 list-decimal">
-                          {children}
-                        </ol>
+                        <ol className="my-4 pl-6 list-decimal">{children}</ol>
                       ),
                       li: ({ children }) => (
                         <li className="mb-2">{children}</li>
@@ -340,6 +356,7 @@ const ChatInterface = ({
             subtopicName={activeQuizSubtopic}
             onClose={handleQuizClose}
             messages={messages}
+            isQuizActive={isQuizActive}
           />
         </div>
       )}

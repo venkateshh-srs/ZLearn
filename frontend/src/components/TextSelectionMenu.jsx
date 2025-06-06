@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Lightbulb, BookOpen, Search } from "lucide-react";
 
-const TextSelectionMenu = ({ onAction, chatContainerRef }) => {
+const TextSelectionMenu = ({ onAction, chatContainerRef, isQuizActive }) => {
   const [selectedText, setSelectedText] = useState("");
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [showMenu, setShowMenu] = useState(false);
@@ -11,10 +11,12 @@ const TextSelectionMenu = ({ onAction, chatContainerRef }) => {
 
   useEffect(() => {
     const handleSelection = () => {
+      console.log(isQuizActive);
+
       const selection = window.getSelection();
       const text = selection?.toString().trim();
 
-      if (text && text.length >= 10) {
+      if (text && text.length >= 10 ) {
         const range = selection?.getRangeAt(0);
         selectionRef.current = range;
         const rect = range?.getBoundingClientRect();
@@ -82,7 +84,7 @@ const TextSelectionMenu = ({ onAction, chatContainerRef }) => {
     window.getSelection()?.removeAllRanges();
   };
 
-  if (!showMenu) return null;
+  if (!showMenu || isQuizActive) return null;
 
   return (
     <div

@@ -12,6 +12,7 @@ function Learn() {
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isThinking, setIsThinking] = useState(false);
+  const [isZQuizActive, setIsZQuizActive] = useState(false);
 
   const [currentTopicName, setCurrentTopicName] = useState("Machine Learning");
   const [topics, setTopics] = useState(courseTopics["Machine Learning"]);
@@ -329,6 +330,8 @@ const totalSubtopics = topics.reduce((acc, topic) => {
         isGenerating={isGenerating}
         isThinking={isThinking}
         setIsThinking={setIsThinking}
+        isZQuizActive={isZQuizActive}
+       
       />
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* The mobile header that was here is now integrated into ChatInterface */}
@@ -341,6 +344,8 @@ const totalSubtopics = topics.reduce((acc, topic) => {
           toggleSidebar={toggleSidebar}
           isThinking={isThinking}
           setIsThinking={setIsThinking}
+          isZQuizActive={isZQuizActive}
+          setIsZQuizActive={setIsZQuizActive}
         />
       </div>
     </div>

@@ -1,6 +1,11 @@
 // src/components/QuizComponent.jsx
 import React, { useState, useEffect } from "react";
 import { X, CheckCircle, XCircle, Loader } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import "katex/dist/katex.min.css";
+import rehypeKatex from "rehype-katex";
 
 // Mock quiz data - adjust as needed, ideally fetch or pass based on subtopicName
 const allQuizData = {
@@ -69,7 +74,7 @@ const allQuizData = {
   // Add more subtopics and their respective questions here
 };
 
-const Quiz = ({ subtopicName, onClose, messages }) => {
+const Quiz = ({ subtopicName, onClose, messages, isQuizActive }) => {
   const [questions, setQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState(""); // Stores the index of the selected option as string for the CURRENT question
@@ -131,13 +136,16 @@ const Quiz = ({ subtopicName, onClose, messages }) => {
   const generateQuiz = async (subtopicName, messages) => {
     // console.log(subtopicName, messages);
 
-    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/generate-quiz`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ subtopicName, messages }),
-    });
+    const response = await fetch(
+      `${import.meta.env.VITE_BACKEND_URL}/generate-quiz`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ subtopicName, messages }),
+      }
+    );
 
     // console.log(response);
 
@@ -150,7 +158,25 @@ const Quiz = ({ subtopicName, onClose, messages }) => {
     setScore(0);
     setUserSelections({}); // Reset user selections
   };
-
+  function replaceLatexInline(text) {
+    console.log(text);
+    if (!text) return "";
+    text = text.replace(/\$\$\s*([\s\S]*?)\s*\$\$/g, (_, inner) => {
+      const cleaned = inner.replace(/\n+/g, " ").trim();
+      return `$$${cleaned}$$`;
+    });
+    text = text.replace(/\\\[([\s\S]*?)\\\]/g, (match, inner) => {
+      const cleanedInner = inner.trim();
+      return `$$${cleanedInner}$$`;
+    });
+    text = text.replace(/\\\((.*?)\\\)/g, (match, inner) => {
+      const cleanedInner = inner.trim();
+      return `$${cleanedInner}$`;
+    });
+    return text.replace(/\\\((.+?)\\\)/g, (_, inner) => {
+      return `$${inner.trim()}$`;
+    });
+  }
   if (questions.length === 0) {
     return (
       <div className="p-8 mb-4 bg-white border border-gray-300 rounded-lg shadow min-w-full">
@@ -329,7 +355,14 @@ const Quiz = ({ subtopicName, onClose, messages }) => {
                 onChange={(e) => setSelectedAnswer(e.target.value)}
                 className="form-radio h-4 w-4 focus:ring-blue-500 border-gray-300 hover:cursor-pointer"
               />
-              <span className="text-sm">{option}</span>
+              <span className="text-sm">
+                <ReactMarkdown
+                  remarkPlugins={[remarkMath, remarkGfm]}
+                  rehypePlugins={[rehypeKatex]}
+                >
+                  {replaceLatexInline(option)}
+                </ReactMarkdown>
+              </span>
             </label>
           ))}
         </div>

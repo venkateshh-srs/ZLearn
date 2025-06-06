@@ -208,8 +208,8 @@ const askAI = async (messages, topic, topics) => {
                 - Structure longer answers for clarity and readability.
 
                 **Any equation or formula should be rendered in the following format (for Frontend)**:
-                - Use single dollar signs for **inline** math/chemistry: e.g., "$E=mc^2$"
-                - Use double dollar signs for **block** math/chemistry:
+                - Use single dollar signs for **inline** math/chemistry/physics or any other scientific notation: e.g., "$E=mc^2$"
+                - Use double dollar signs for **block** math/chemistry/physics or any other scientific notation:
                   
                   $$
                   ax^2 + bx + c = 0
@@ -231,6 +231,7 @@ const askAI = async (messages, topic, topics) => {
     });
 
     const result = completion.choices[0].message.content;
+    
     console.log(result);
     return {
       success: true,
