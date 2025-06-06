@@ -79,7 +79,7 @@ Your task is to interpret user prompts and return a structured course outline in
 2. If the user input is clear and valid, set "success": true and generate:
    - "title": a cleaned-up course title.
    - "message": a short confirmation message (e.g., "Course outline generated successfully.").
-   - "data": an array of 2-5 topic objects, each with 2-5 subtopics based on the topic and if there is need of 3rd level hierarchy then add it but not more than 3 levels. Please ensure you generate at least 3 topics and subtopics.
+   - "data": an array of 3-5 topic objects, each with 4-6 subtopics based on the topic and if there is need of 3rd level hierarchy then add more subtopics to the subtopic. The hierarchy cannot be more than 3 levels.
 
 3. If the user input is vague, harmful, inappropriate, or unsuitable for a course, set "success": false, and provide:
    - "title": a cleaned-up version of the user prompt.
