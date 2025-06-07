@@ -79,9 +79,9 @@ Your task is to interpret user prompts and return a structured course outline in
 2. If the user input is clear and valid, set "success": true and generate:
    - "title": a cleaned-up course title.
    - "message": a short confirmation message (e.g., "Course outline generated successfully.").
-  - "data": an array of 4–7 well-structured topics. Each topic must:
+  - "data": an array of 5–8 well-structured topics. Each topic must:
   - Start with an "Introduction to {Topic Name}" as the **first subtopic**, ensuring the learner understands the context before diving deeper.
-  - Contain a total of 4–6 subtopics (including the introduction).
+  - Contain a total of 3–6 subtopics (including the introduction).
   - If a subtopic requires more elaboration, you may optionally include a **third level of hierarchy (sub-subtopics)**. Add 2–5 sub-subtopics where deeper clarification is beneficial. If using this third level, include an "Introduction to {Subtopic Name}" as the first sub-subtopic if necessary.
   - Follow a **clear chronological and logical progression**, allowing the learner to build understanding step by step.
   - **Logical & Chronological Flow:** The course structure must progress from foundational concepts and definitions, to core principles, then to practical applications, and finally to advanced or related topics. Each topic should naturally lead into the next, forming a coherent learning path.
