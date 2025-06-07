@@ -148,6 +148,7 @@ const ChatInterface = ({
         onAction={handleTextSelectionAction}
         chatContainerRef={chatContainerRef}
         isQuizActive={isQuizActive}
+        isThinking={isThinking}
       />
 
       <div className="flex items-center justify-between p-4 border-b border-light-gray bg-sidebar-bg md:bg-white z-10">

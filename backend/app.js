@@ -22,7 +22,7 @@ const generateQuiz = async (topicName, messages) => {
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
@@ -66,22 +66,29 @@ const generateQuiz = async (topicName, messages) => {
 async function generateCourseContents(userTopic) {
   try {
     const chatCompletion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
           content: `You are an expert educational content generator.
 
-Your task is to interpret user prompts and return a structured course outline in JSON format.
+Your task is to interpret user prompts and return a structured course outline in JSON format, optimized for a digital educational interface.
 
-1. Generate a clean, meaningful course title based on the user's input. This should be suitable for display in an educational interface.It should be in 2-5 words  (e.g., "Social Science for IAS Preparation").
+1. Generate a clean, meaningful course title based on the user's input. The title should be 2-5 words long and suitable for display in a learning app (e.g., "Social Science for IAS Preparation").
 
 2. If the user input is clear and valid, set "success": true and generate:
    - "title": a cleaned-up course title.
    - "message": a short confirmation message (e.g., "Course outline generated successfully.").
-   - "data": an array of 3-5 topic objects, each with 4-6 subtopics based on the topic and if there is need of 3rd level hierarchy then add more subtopics to the subtopic. The hierarchy cannot be more than 3 levels.
+  - "data": an array of 4–7 well-structured topics. Each topic must:
+  - Start with an "Introduction to {Topic Name}" as the **first subtopic**, ensuring the learner understands the context before diving deeper.
+  - Contain a total of 4–6 subtopics (including the introduction).
+  - If a subtopic requires more elaboration, you may optionally include a **third level of hierarchy (sub-subtopics)**. Add 2–5 sub-subtopics where deeper clarification is beneficial. If using this third level, include an "Introduction to {Subtopic Name}" as the first sub-subtopic if necessary.
+  - Follow a **clear chronological and logical progression**, allowing the learner to build understanding step by step.
+  - **Logical & Chronological Flow:** The course structure must progress from foundational concepts and definitions, to core principles, then to practical applications, and finally to advanced or related topics. Each topic should naturally lead into the next, forming a coherent learning path.
 
-3. If the user input is vague, harmful, inappropriate, or unsuitable for a course, set "success": false, and provide:
+
+
+3. If the user input is vague, harmful, inappropriate, or unsuitable for a course, set "success": false and provide:
    - "title": a cleaned-up version of the user prompt.
    - "message": a clear explanation of why content could not be generated.
    - "data": an empty array.`,
@@ -171,7 +178,7 @@ const askAI = async (messages, topic, topics) => {
   console.log(subtopicsNames);
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
@@ -190,10 +197,11 @@ const askAI = async (messages, topic, topics) => {
                 ### 🔍 Relevance Rules
 
                 1. **Respond if any of these are true**:
-                  - The user’s query is clearly related to the **current topic**: "${topic}"
+                  - The user’s query is clearly related to the **current topic or subtopic or sub-subtopic or all subtopics**:
                   - The query is related to one of the **topics** or **subtopics** or **all subtopics** in the lists provided.
-                  - The user has selected a **specific piece of text** and asked for **elaboration**, an **example**, or an **analogy** related to that text.
+                  - The user has selected a **specific piece of text** and asked for **elaboration**, an **example**, or an **analogy** related to that text from previous messages.
                   -Provide an example whenever possible and when the user asks to explain a topic in the "all subtopics" list.
+                  -Dont be too strict for checking the relevance of the query. If the query is related to the conversation history or to our "all subtopics" list then respond to it.
 
                 2. **Only if none of the above apply**, reply with:
                   **"This is not related to the topic: ${topic}."**
@@ -231,7 +239,7 @@ const askAI = async (messages, topic, topics) => {
     });
 
     const result = completion.choices[0].message.content;
-    
+
     console.log(result);
     return {
       success: true,
