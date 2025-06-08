@@ -22,7 +22,7 @@ const generateQuiz = async (topicName, messages) => {
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -178,7 +178,7 @@ const askAI = async (messages, topic, topics) => {
   console.log(subtopicsNames);
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
