@@ -22,7 +22,7 @@ const generateQuiz = async (topicName, messages) => {
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
@@ -83,6 +83,8 @@ Your task is to interpret user prompts and return a structured course outline in
   - Start with an "Introduction to {Topic Name}" as the **first subtopic**, ensuring the learner understands the context before diving deeper.
   - Contain a total of 3–6 subtopics (including the introduction).
   - If a subtopic requires more elaboration, you may optionally include a **third level of hierarchy (sub-subtopics)**. Add 2–5 sub-subtopics where deeper clarification is beneficial. If using this third level, include an "Introduction to {Subtopic Name}" as the first sub-subtopic if necessary.
+  -You have to **strictly follow** this convention for the id's of topics, subtopics and sub-subtopics. The id's of topics will be like 1, 2, 3.... and subtopics will be like 1.1, 1.2, 1.3.... and sub-subtopics will be like 1.1.1, 1.1.2, 1.1.3....
+  -If there is dollar symbol please render it like this: Eg., **$100** 
   - Follow a **clear chronological and logical progression**, allowing the learner to build understanding step by step.
   - **Logical & Chronological Flow:** The course structure must progress from foundational concepts and definitions, to core principles, then to practical applications, and finally to advanced or related topics. Each topic should naturally lead into the next, forming a coherent learning path.
 
@@ -183,7 +185,6 @@ const askAI = async (messages, topic, topics) => {
         {
           role: "system",
           content: `You are a helpful assistant.
-
                 You are given the following context:
                 - A **current topic**: "${topic}"
                 - A **list of topics**: ${topicsNames}

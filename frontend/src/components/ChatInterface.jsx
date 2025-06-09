@@ -32,12 +32,17 @@ const ChatInterface = ({
   isThinking,
   isZQuizActive,
   setIsZQuizActive,
+  topics,
+  currentChat,
+  scrollToMessageId,
+  setScrollToMessageId,
 }) => {
   const [inputValue, setInputValue] = useState("");
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null); // Create a ref for the chat container
+  const messageRefs = useRef({});
   const navigate = useNavigate();
-
+  const [showRawText, setShowRawText] = useState(false);
   const [isQuizActive, setIsQuizActive] = useState(false);
   const [activeQuizSubtopic, setActiveQuizSubtopic] = useState("");
 
@@ -46,6 +51,16 @@ const ChatInterface = ({
   };
 
   useEffect(scrollToBottom, [messages, isQuizActive]);
+
+  useEffect(() => {
+    if (scrollToMessageId && messageRefs.current[scrollToMessageId]) {
+      messageRefs.current[scrollToMessageId].scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      setScrollToMessageId(null);
+    }
+  }, [scrollToMessageId, setScrollToMessageId]);
 
   const handleSend = () => {
     if (inputValue.trim() && !isThinking) {
@@ -62,7 +77,7 @@ const ChatInterface = ({
 
   // Handler for actions from the text selection menu
   const handleTextSelectionAction = (action, selectedText) => {
-    console.log(isQuizActive);
+    // console.log(isQuizActive);
     if (isQuizActive) {
       return;
     }
@@ -144,6 +159,8 @@ const ChatInterface = ({
   return (
     <div className="flex flex-col h-full max-h-full overflow-hidden bg-white z-1">
       {/* Add the TextSelectionMenu component here */}
+      {/* {console.log(topics, currentChat)} */}
+      {console.log(currentChat)}
       <TextSelectionMenu
         onAction={handleTextSelectionAction}
         chatContainerRef={chatContainerRef}
@@ -165,7 +182,9 @@ const ChatInterface = ({
         <h1 className="text-lg font-semibold text-dark-gray truncate px-2">
           {mainTopicName}
           {currentSubtopicName && isTopicSelected && !isQuizActive ? (
-            <span className="text-blue-400"> - {currentSubtopicName}</span>
+            <span className="text-blue-400">
+              - {topics.find((t) => t.id === currentChat.topicId).name}
+            </span>
           ) : isQuizActive && activeQuizSubtopic ? (
             <span className="text-sky-800"> - Quiz: {activeQuizSubtopic}</span>
           ) : (
@@ -191,6 +210,7 @@ const ChatInterface = ({
         {messages.map((msg) => (
           <div
             key={msg.id}
+            ref={(el) => (messageRefs.current[msg.id] = el)}
             className={`flex ${
               msg.sender === "user" ? "justify-end" : "justify-start"
             } ${
@@ -206,12 +226,12 @@ const ChatInterface = ({
             }`}
           >
             <div
-              className={`max-w-xs md:max-w-md lg:max-w-lg xl:max-w-2xl p-3 rounded-lg shadow overflow-hidden ${
+              className={`max-w-lg sm:max-w-lg md:max-w-md lg:max-w-lg xl:max-w-2xl p-3 rounded-lg shadow overflow-hidden ${
                 msg.sender === "user"
                   ? "bg-message-user text-gray-900 rounded-br-none border border-sky-100"
                   : msg.sender === "llm"
                   ? msg.text === "Generating new subtopics..." && msg.thinking
-                    ? "bg-blue-100 border border-blue-300 text-blue-800 text-center w-full max-w-md mx-auto text-sm"
+                    ? "bg-blue-100 border border-blue-300 text-sky-800 text-center w-full max-w-md mx-auto text-sm"
                     : "bg-message-llm text-dark-gray border border-gray-100 rounded-bl-none"
                   : msg.sender === "system" || msg.sender === "system_info"
                   ? "bg-blue-100 border border-blue-300 text-blue-800 text-center w-full max-w-md mx-auto text-sm"
@@ -264,86 +284,111 @@ const ChatInterface = ({
                     )}
                   </div>
                 ) : (
-                  <ReactMarkdown
-                    remarkPlugins={[remarkMath, remarkGfm]}
-                    rehypePlugins={[rehypeKatex]}
-                    components={{
-                      h1: ({ node, ...props }) => (
-                        <h1 className="text-2xl font-bold my-4" {...props} />
-                      ),
-                      h2: ({ node, ...props }) => (
-                        <h2 className="text-xl font-bold my-3" {...props} />
-                      ),
-                      h3: ({ node, ...props }) => (
-                        <h3 className="text-lg font-bold my-1" {...props} />
-                      ),
-                      h4: ({ node, ...props }) => (
-                        <h4 className="text-base font-bold my-1" {...props} />
-                      ),
-                      h5: ({ node, ...props }) => (
-                        <h5 className="text-sm font-bold my-1" {...props} />
-                      ),
-                      h6: ({ node, ...props }) => (
-                        <h6 className="text-xs font-bold my-1" {...props} />
-                      ),
-                      p: ({ children }) => (
-                        <p className="mb-2 leading-relaxed">{children}</p>
-                      ),
-                      strong: ({ children }) => (
-                        <strong className="font-semibold">{children}</strong>
-                      ),
-                      ul: ({ children }) => (
-                        <ul className="list-outside my-4 pl-4 list-disc">
-                          {children}
-                        </ul>
-                      ),
-                      ol: ({ children }) => (
-                        <ol className="my-4 pl-6 list-decimal">{children}</ol>
-                      ),
-                      li: ({ children }) => (
-                        <li className="mb-2">{children}</li>
-                      ),
-                      blockquote: ({ children }) => (
-                        <blockquote className="border-l-4 border-gray-300 pl-4 italic my-4 text-gray-600">
-                          {children}
-                        </blockquote>
-                      ),
-                      pre: ({ children }) => (
-                        <pre className="bg-gray-800 text-white p-4 rounded-md my-4 overflow-x-auto text-sm">
-                          {children}
-                        </pre>
-                      ),
-                      table: ({ children }) => (
-                        <div className="overflow-x-auto my-4">
-                          <table className="min-w-full border border-gray-300">
-                            {children}
-                          </table>
-                        </div>
-                      ),
-                      thead: ({ children }) => (
-                        <thead className="bg-gray-100 border-b border-gray-300">
-                          {children}
-                        </thead>
-                      ),
-                      tbody: ({ children }) => <tbody>{children}</tbody>,
-                      tr: ({ children }) => (
-                        <tr className="border-b border-gray-200">{children}</tr>
-                      ),
-                      th: ({ children }) => (
-                        <th className="px-4 py-2 text-left font-semibold text-sm text-gray-700">
-                          {children}
-                        </th>
-                      ),
-                      td: ({ children }) => (
-                        <td className="px-4 py-2 text-sm text-gray-800">
-                          {children}
-                        </td>
-                      ),
-                    }}
-                  >
-                    {replaceLatexInline(msg.text)}
-                  </ReactMarkdown>
+                  <>
+                    {showRawText ? (
+                      <div className="text-sm text-gray-500">{msg.text}</div>
+                    ) : (
+                      <ReactMarkdown
+                        remarkPlugins={[remarkMath, remarkGfm]}
+                        rehypePlugins={[rehypeKatex]}
+                        components={{
+                          h1: ({ node, ...props }) => (
+                            <h1
+                              className="text-2xl font-bold my-4"
+                              {...props}
+                            />
+                          ),
+                          h2: ({ node, ...props }) => (
+                            <h2 className="text-xl font-bold my-3" {...props} />
+                          ),
+                          h3: ({ node, ...props }) => (
+                            <h3 className="text-lg font-bold my-1" {...props} />
+                          ),
+                          h4: ({ node, ...props }) => (
+                            <h4
+                              className="text-base font-bold my-1"
+                              {...props}
+                            />
+                          ),
+                          h5: ({ node, ...props }) => (
+                            <h5 className="text-sm font-bold my-1" {...props} />
+                          ),
+                          h6: ({ node, ...props }) => (
+                            <h6 className="text-xs font-bold my-1" {...props} />
+                          ),
+                          p: ({ children }) => (
+                            <p className="mb-2 leading-relaxed">{children}</p>
+                          ),
+                          strong: ({ children }) => (
+                            <strong className="font-semibold">
+                              {children}
+                            </strong>
+                          ),
+                          ul: ({ children }) => (
+                            <ul className="list-outside my-4 pl-4 list-disc">
+                              {children}
+                            </ul>
+                          ),
+                          ol: ({ children }) => (
+                            <ol className="my-4 pl-6 list-decimal">
+                              {children}
+                            </ol>
+                          ),
+                          li: ({ children }) => (
+                            <li className="mb-2">{children}</li>
+                          ),
+                          blockquote: ({ children }) => (
+                            <blockquote className="border-l-4 border-gray-300 pl-4 italic my-4 text-gray-600">
+                              {children}
+                            </blockquote>
+                          ),
+                          pre: ({ children }) => (
+                            <pre className="bg-gray-800 text-white p-4 rounded-md my-4 overflow-x-auto text-sm">
+                              {children}
+                            </pre>
+                          ),
+                          table: ({ children }) => (
+                            <div className="overflow-x-auto my-4">
+                              <table className="min-w-full border border-gray-300">
+                                {children}
+                              </table>
+                            </div>
+                          ),
+                          thead: ({ children }) => (
+                            <thead className="bg-gray-100 border-b border-gray-300">
+                              {children}
+                            </thead>
+                          ),
+                          tbody: ({ children }) => <tbody>{children}</tbody>,
+                          tr: ({ children }) => (
+                            <tr className="border-b border-gray-200">
+                              {children}
+                            </tr>
+                          ),
+                          th: ({ children }) => (
+                            <th className="px-4 py-2 text-left font-semibold text-sm text-gray-700">
+                              {children}
+                            </th>
+                          ),
+                          td: ({ children }) => (
+                            <td className="px-4 py-2 text-sm text-gray-800">
+                              {children}
+                            </td>
+                          ),
+                        }}
+                      >
+                        {replaceLatexInline(msg.text)}
+                      </ReactMarkdown>
+                    )}
+                  </>
                 )}
+                {/* button to toggle raw text and markdown */}
+                <button
+                  onClick={() => setShowRawText(!showRawText)}
+                  className="text-xs text-gray-500 hover:text-gray-700"
+                >
+                  {showRawText ? "Show Markdown" : "Show Raw Text"}
+                </button>
               </div>
             </div>
           </div>

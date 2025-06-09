@@ -29,7 +29,7 @@ const SubtopicItem = ({
       <div key={subtopic.id}>
         <button
           onClick={() => toggleAccordion(subtopic.id)}
-          className={`w-full flex items-center justify-between text-left p-2.5 rounded-md hover:bg-light-gray focus:outline-none focus:bg-light-gray transition-colors duration-150 ${
+          className={`w-full flex items-center text-left gap-3 p-2.5 rounded-md hover:bg-light-gray focus:outline-none focus:bg-light-gray transition-colors duration-150 ${
             isThinking ? "opacity-70 cursor-not-allowed" : ""
           }`}
           disabled={isThinking || isZQuizActive}
@@ -132,9 +132,8 @@ const Sidebar = ({
   };
 
   const handleSubtopicClick = (topicId, subtopicId, subtopicName) => {
-    if (completedSubtopics.has(subtopicId)) return;
     if (isThinking) return;
-    console.log("Selected:", { topicId, subtopicId, subtopicName });
+
     if (onSubtopicSelect) {
       onSubtopicSelect(topicId, subtopicId, subtopicName);
     }
@@ -143,7 +142,6 @@ const Sidebar = ({
 
   return (
     <>
-      {console.log(isZQuizActive)}
       {isOpen && (
         <div
           className="fixed inset-0 z-30 bg-black opacity-50 md:hidden"
@@ -157,13 +155,13 @@ const Sidebar = ({
         } md:relative md:translate-x-0 transition-transform duration-300 ease-in-out border-r border-gray-200 shadow-lg`}
       >
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2 cursor-pointer">
+          <div className="flex items-center space-x-2 gap-2 cursor-pointer">
             <BookOpen
-              size={32}
+              size={34}
               className="text-blue-500"
               onClick={() => navigate("/")}
             />
-            <p className="text-xl font-semibold text-gray-800">
+            <p className="text-lg font-semibold text-gray-800">
               {topicName || "My Course"}
             </p>
           </div>
@@ -209,7 +207,7 @@ const Sidebar = ({
               <div key={topic.id}>
                 <button
                   onClick={() => toggleAccordion(topic.id)}
-                  className={`w-full flex items-center justify-between text-left p-2.5 rounded-md hover:bg-gray-100 focus:outline-none focus:bg-gray-100 transition-colors duration-150 ${
+                  className={`w-full flex items-center gap-3 text-left p-2.5 rounded-md hover:bg-gray-100 focus:outline-none focus:bg-gray-100 transition-colors duration-150 ${
                     isThinking || isZQuizActive
                       ? "opacity-70 cursor-not-allowed"
                       : ""

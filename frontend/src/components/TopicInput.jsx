@@ -8,6 +8,9 @@ export default function TopicInput({ input, setInput }) {
   const [error, setError] = useState("");
   const navigate = useNavigate();
   const handleClick = async () => {
+    if (loading) {
+      return;
+    }
     setLoading(true);
     setError("");
 
@@ -63,7 +66,7 @@ export default function TopicInput({ input, setInput }) {
           <input
             type="text"
             placeholder="e.g., Python Programming, Guitar Playing, Cooking..."
-            className="w-full px-4 py-2 rounded-md border-gray-300 border-2"
+            className="w-full px-4 py-2 pr-10 rounded-md border-gray-300 border-2"
             value={input}
             onKeyPress={(e) => {
               if (e.key === "Enter") {

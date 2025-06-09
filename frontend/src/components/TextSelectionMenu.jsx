@@ -11,7 +11,7 @@ const TextSelectionMenu = ({ onAction, chatContainerRef, isQuizActive, isThinkin
 
   useEffect(() => {
     const handleSelection = () => {
-      console.log(isQuizActive);
+      // console.log(isQuizActive);
 
       const selection = window.getSelection();
       const text = selection?.toString().trim();

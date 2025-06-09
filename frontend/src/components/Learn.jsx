@@ -13,17 +13,22 @@ function Learn() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isThinking, setIsThinking] = useState(false);
   const [isZQuizActive, setIsZQuizActive] = useState(false);
+  const [scrollToMessageId, setScrollToMessageId] = useState(null);
 
   const [currentTopicName, setCurrentTopicName] = useState("Machine Learning");
   const [topics, setTopics] = useState(courseTopics["Machine Learning"]);
   const [completedSubtopics, setCompletedSubtopics] = useState(new Set());
+  //maintain a map for subtopic id and msg id to easily get the message id to scroll to
   const [currentChat, setCurrentChat] = useState({
     topicId: null,
     subtopicId: null,
     subtopicName: "",
   });
-  const [messages, setMessages] = useState([]);
+  // const [messages, setMessages] = useState([]);
+  const [chatThreads, setChatThreads] = useState({});
+
   const [isGenerating, setIsGenerating] = useState(false);
+  const currentMessages = chatThreads[currentChat.topicId] || [];
 
   // const validTopics = Object.keys(courseTopics);
 
@@ -58,7 +63,8 @@ function Learn() {
   useEffect(() => {
     // setTopics(courseTopics[currentTopicName]);
     setCompletedSubtopics(new Set());
-    setMessages([]);
+    // setMessages([]);
+    setChatThreads({});
     setCurrentChat({ topicId: null, subtopicId: null, subtopicName: "" });
   }, [currentTopicName]);
   const getLlmResponseFromBackend = async (formattedMessages) => {
@@ -90,8 +96,28 @@ function Learn() {
     }
   };
   const handleSubtopicSelect = async (topicId, subtopicId, subtopicName) => {
+    if (completedSubtopics.has(subtopicId)) {
+      if (window.innerWidth < 768) {
+        toggleSidebar();
+      }
+      setCurrentChat({ topicId, subtopicId, subtopicName });
+
+      const chatHistory = chatThreads[topicId] || [];
+      const userMessageText = `Let's learn about: ${subtopicName}`;
+      const messageToScrollTo = chatHistory.find(
+        (m) => m.text === userMessageText && m.sender === "user"
+      );
+      // console.log(messageToScrollTo);
+
+      if (messageToScrollTo) {
+        setScrollToMessageId(messageToScrollTo.id);
+      }
+      return;
+    }
     setIsThinking(true);
-    toggleSidebar();
+    if (window.innerWidth < 768) {
+      toggleSidebar();
+    }
     setCurrentChat({ topicId, subtopicId, subtopicName });
 
     const userMessage = {
@@ -100,133 +126,148 @@ function Learn() {
       text: `Let's learn about: ${subtopicName}`,
     };
 
-    const thinkingMessageId = Date.now() + 1;
     const thinkingMessage = {
-      id: thinkingMessageId,
+      id: Date.now() + 1,
       sender: "llm",
       text: "Thinking...",
       thinking: true,
     };
 
-    setMessages((prevMessages) => [
-      ...prevMessages,
-      userMessage,
-      thinkingMessage,
-    ]);
+    // Get the previous messages for this topic, or start a new array
+    const previousMessages = chatThreads[topicId] || [];
 
-    // Prepare messages for API, excluding any previous "Thinking..." or error messages not from user/llm
-    const chatContextForApi = messages.filter(
+    setChatThreads((prevThreads) => ({
+      ...prevThreads,
+      [topicId]: [...previousMessages, userMessage, thinkingMessage],
+    }));
+
+    // Prepare messages for API, using the context from the correct thread
+    const chatContextForApi = [...previousMessages, userMessage].filter(
       (msg) => msg.sender === "user" || (msg.sender === "llm" && !msg.thinking)
     );
-    const formattedMessages = [...chatContextForApi, userMessage].map(
-      (msg) => ({
-        role: msg.sender === "llm" ? "assistant" : "user",
-        content: msg.text,
-      })
-    );
+    const formattedMessages = chatContextForApi.map((msg) => ({
+      role: msg.sender === "llm" ? "assistant" : "user",
+      content: msg.text,
+    }));
 
     try {
       const llmReply = await getLlmResponseFromBackend(formattedMessages);
       const llmResponseMessage = {
-        id: Date.now() + 2, // Ensure unique ID
+        id: Date.now() + 2,
         sender: "llm",
         text: llmReply,
         thinking: false,
       };
-      setMessages((prevMessages) =>
-        prevMessages.map((msg) =>
-          msg.id === thinkingMessageId ? llmResponseMessage : msg
-        )
-      );
+      setChatThreads((prevThreads) => ({
+        ...prevThreads,
+        [topicId]: prevThreads[topicId].map((msg) =>
+          msg.id === thinkingMessage.id ? llmResponseMessage : msg
+        ),
+      }));
       setCompletedSubtopics((prev) => new Set(prev).add(subtopicId));
     } catch (error) {
       console.error("Subtopic select LLM API error:", error);
-      setMessages((prevMessages) =>
-        prevMessages.map((msg) =>
-          msg.id === thinkingMessageId
-            ? {
-                ...msg,
-                thinking: false,
-                text: "Sorry, I couldn't process that. Please try again.",
-              }
-            : msg
-        )
-      );
+      const errorMessage = {
+        ...thinkingMessage,
+        thinking: false,
+        text: "Sorry, I couldn't process that. Please try again.",
+      };
+      setChatThreads((prevThreads) => ({
+        ...prevThreads,
+        [topicId]: prevThreads[topicId].map((msg) =>
+          msg.id === thinkingMessage.id ? errorMessage : msg
+        ),
+      }));
     } finally {
       setIsThinking(false);
-    }
-
-    if (window.innerWidth < 768) {
-      setSidebarOpen(false);
     }
   };
 
   const handleSendMessage = async (messageText, quickAction = null) => {
     setIsThinking(true);
+    const { topicId, subtopicName } = currentChat;
+
+    // Do not proceed if there is no active topic
+    if (!topicId) {
+      setIsThinking(false);
+      console.error("Cannot send message without an active topic.");
+      // Optionally, update UI to inform user to select a topic
+      const noTopicError = {
+        id: Date.now(),
+        sender: "llm",
+        text: "Please select a topic from the sidebar to begin.",
+      };
+      setChatThreads((prev) => ({
+        ...prev,
+        [null]: [...(prev[null] || []), noTopicError],
+      }));
+      return;
+    }
+
     const userMessage = {
       id: Date.now(),
       sender: "user",
       text: messageText,
     };
 
-    const thinkingId = Date.now() + 1; // Unique ID for the thinking message
     const thinkingMessage = {
-      id: thinkingId,
+      id: Date.now() + 1,
       sender: "llm",
       text: "Thinking...",
       thinking: true,
     };
 
-    setMessages((prevMessages) => [
-      ...prevMessages,
-      userMessage,
-      thinkingMessage,
-    ]);
+    const previousMessages = chatThreads[topicId] || [];
 
-    // Prepare messages for API, excluding any previous "Thinking..." or error messages not from user/llm
-    const chatContextForApi = messages.filter(
+    setChatThreads((prevThreads) => ({
+      ...prevThreads,
+      [topicId]: [...previousMessages, userMessage, thinkingMessage],
+    }));
+
+    // Prepare messages for API
+    const chatContextForApi = [...previousMessages, userMessage].filter(
       (msg) => msg.sender === "user" || (msg.sender === "llm" && !msg.thinking)
     );
-    let currentMessagesForApi = [...chatContextForApi, userMessage];
 
-    const formattedMessages = currentMessagesForApi.map((msg) => ({
+    const formattedMessages = chatContextForApi.map((msg) => ({
       role: msg.sender === "llm" ? "assistant" : "user",
       content: msg.text,
     }));
 
-    if (quickAction && currentChat?.subtopicName) {
+    if (quickAction && subtopicName) {
       formattedMessages.push({
-        role: "user", // This is a contextual instruction for the LLM
-        content: `Regarding "${currentChat.subtopicName}", can you ${quickAction} it?`,
+        role: "user",
+        content: `Regarding "${subtopicName}", can you ${quickAction} it?`,
       });
     }
 
     try {
       const llmReply = await getLlmResponseFromBackend(formattedMessages);
       const llmResponseMessage = {
-        id: Date.now() + 2, // Ensure unique ID
+        id: Date.now() + 2,
         sender: "llm",
         text: llmReply,
         thinking: false,
       };
-      setMessages((prevMessages) =>
-        prevMessages.map((msg) =>
-          msg.id === thinkingId ? llmResponseMessage : msg
-        )
-      );
+      setChatThreads((prevThreads) => ({
+        ...prevThreads,
+        [topicId]: prevThreads[topicId].map((msg) =>
+          msg.id === thinkingMessage.id ? llmResponseMessage : msg
+        ),
+      }));
     } catch (error) {
       console.error("LLM API error:", error);
-      setMessages((prevMessages) =>
-        prevMessages.map((msg) =>
-          msg.id === thinkingId
-            ? {
-                ...msg,
-                thinking: false,
-                text: "Sorry, an error occurred. Please try again.",
-              }
-            : msg
-        )
-      );
+      const errorMessage = {
+        ...thinkingMessage,
+        thinking: false,
+        text: "Sorry, an error occurred. Please try again.",
+      };
+      setChatThreads((prevThreads) => ({
+        ...prevThreads,
+        [topicId]: prevThreads[topicId].map((msg) =>
+          msg.id === thinkingMessage.id ? errorMessage : msg
+        ),
+      }));
     } finally {
       setIsThinking(false);
     }
@@ -255,60 +296,62 @@ function Learn() {
     setTopics(result.data.data);
     // console.log(result.data.data);
   };
-
   const handleRegenerate = async () => {
-    setIsGenerating(true); // Used for the sidebar refresh icon animation
-    setIsThinking(true); // General thinking state to disable other inputs
+    setIsGenerating(true);
+    setIsThinking(true);
+
+    // Use `null` as the key for system-level, non-topic-specific messages
+    setCurrentChat({ topicId: null, subtopicId: null, subtopicName: "" });
+    setCompletedSubtopics(new Set());
+    setChatThreads({});
+
 
     const thinkingMessage = {
-      id: Date.now(), // Unique ID
-      sender: "llm", // Changed back to llm to avoid system styling if not desired for this
+      id: Date.now(),
+      sender: "llm",
       text: "Generating new subtopics...",
       thinking: true,
     };
-    setMessages([thinkingMessage]);
-    setCurrentChat({ topicId: null, subtopicId: null, subtopicName: "" });
-    setCompletedSubtopics(new Set());
+
 
     try {
       await generateNewSubtopics(currentTopicName);
       const successMessage = {
-        id: Date.now() + 1, // Ensure unique ID
+        id: Date.now() + 1,
         sender: "llm",
         text: `Okay, I've regenerated the subtopics for ${currentTopicName}. What would you like to learn first?`,
         thinking: false,
       };
-      setMessages([successMessage]); // Replace thinking message with success
+      setChatThreads((prev) => ({ ...prev, [null]: [successMessage] }));
     } catch (error) {
       console.error("Error generating subtopics:", error);
       const errorMessage = {
-        id: thinkingMessage.id, // Reuse ID to replace the thinking message
-        sender: "llm", // Or "system" if preferred for errors
+        id: thinkingMessage.id,
+        sender: "llm",
         text: `Sorry, there was an error refreshing the content: ${error.message}. Please try again.`,
         thinking: false,
       };
-      setMessages([errorMessage]); // Replace thinking message with error
+      setChatThreads((prev) => ({ ...prev, [null]: [errorMessage] }));
     } finally {
       setIsGenerating(false);
       setIsThinking(false);
     }
   };
 
-const totalSubtopics = topics.reduce((acc, topic) => {
-  return (
-    acc +
-    topic.subtopics.reduce((subAcc, subtopic) => {
-      if (subtopic?.subtopics?.length > 0) {
-        // Count only the number of sub-subtopics
-        return subAcc + subtopic?.subtopics?.length;
-      } else {
-        // Count the subtopic itself
-        return subAcc + 1;
-      }
-    }, 0)
-  );
-}, 0);
-
+  const totalSubtopics = topics.reduce((acc, topic) => {
+    return (
+      acc +
+      topic.subtopics.reduce((subAcc, subtopic) => {
+        if (subtopic?.subtopics?.length > 0) {
+          // Count only the number of sub-subtopics
+          return subAcc + subtopic?.subtopics?.length;
+        } else {
+          // Count the subtopic itself
+          return subAcc + 1;
+        }
+      }, 0)
+    );
+  }, 0);
 
   const progress =
     totalSubtopics > 0 ? (completedSubtopics.size / totalSubtopics) * 100 : 0;
@@ -331,12 +374,13 @@ const totalSubtopics = topics.reduce((acc, topic) => {
         isThinking={isThinking}
         setIsThinking={setIsThinking}
         isZQuizActive={isZQuizActive}
-       
       />
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* The mobile header that was here is now integrated into ChatInterface */}
         <ChatInterface
-          messages={messages}
+          messages={currentMessages}
+          topics={topics}
+          currentChat={currentChat}
           onSendMessage={handleSendMessage}
           currentSubtopicName={currentChat.subtopicName}
           isTopicSelected={!!currentChat.subtopicId}
@@ -346,6 +390,8 @@ const totalSubtopics = topics.reduce((acc, topic) => {
           setIsThinking={setIsThinking}
           isZQuizActive={isZQuizActive}
           setIsZQuizActive={setIsZQuizActive}
+          scrollToMessageId={scrollToMessageId}
+          setScrollToMessageId={setScrollToMessageId}
         />
       </div>
     </div>
