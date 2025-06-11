@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { v4 as uuidv4 } from "uuid";
 
-export default function TopicInput({ input, setInput }) {
+export default function TopicInput({ input, setInput, isGenerating, setIsGenerating }) {
   const isDisabled = input.trim() === "";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
   const handleClick = async () => {
+    setIsGenerating(true);
     if (loading) {
       return;
     }
@@ -32,7 +34,7 @@ export default function TopicInput({ input, setInput }) {
       if (result.success) {
         // Optionally store in localStorage to survive refresh
         // console.log(result.data);
-
+        result.data.id = uuidv4();
         navigate("/learn", {
           state: {
             data: result.data,
@@ -56,6 +58,7 @@ export default function TopicInput({ input, setInput }) {
       // setError("An unexpected error occurred. Please try again later.");
     } finally {
       setLoading(false);
+      setIsGenerating(false);
     }
   };
 

@@ -1,49 +1,150 @@
 import React, { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import ChatInterface from "./ChatInterface";
-import { courseTopics } from "../data/courseTopics";
-// import generateNewSubtopics from "../data/regenerateTopics";
-import { useLocation } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+
+// Helper function to calculate total subtopics
+const calculateTotalSubtopics = (topics) => {
+  return (topics || []).reduce((acc, topic) => {
+    return (
+      acc +
+      (topic.subtopics || []).reduce((subAcc, subtopic) => {
+        if (subtopic?.subtopics?.length > 0) {
+          return subAcc + subtopic.subtopics.length;
+        } else {
+          return subAcc + 1;
+        }
+      }, 0)
+    );
+  }, 0);
+};
 
 function Learn() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [isThinking, setIsThinking] = useState(false);
-  const [isZQuizActive, setIsZQuizActive] = useState(false);
-  const [scrollToMessageId, setScrollToMessageId] = useState(null);
-
-  const [currentTopicName, setCurrentTopicName] = useState("Machine Learning");
-  const [topics, setTopics] = useState(courseTopics["Machine Learning"]);
+  // Core state for the entire component
+  const [currentTopicName, setCurrentTopicName] = useState(null);
+  const [topics, setTopics] = useState([]);
   const [completedSubtopics, setCompletedSubtopics] = useState(new Set());
-  //maintain a map for subtopic id and msg id to easily get the message id to scroll to
+  const [chatThreads, setChatThreads] = useState({});
   const [currentChat, setCurrentChat] = useState({
     topicId: null,
     subtopicId: null,
     subtopicName: "",
   });
-  // const [messages, setMessages] = useState([]);
-  const [chatThreads, setChatThreads] = useState({});
+  const [currentTopicId, setCurrentTopicId] = useState(null);
 
+  // UI State
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isThinking, setIsThinking] = useState(false);
+  const [isZQuizActive, setIsZQuizActive] = useState(false);
+  const [scrollToMessageId, setScrollToMessageId] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const currentMessages = chatThreads[currentChat.topicId] || [];
 
-  // const validTopics = Object.keys(courseTopics);
-
+  // Load course data on mount or location change
   useEffect(() => {
-    // console.log(location.state.data);
-    if (location.state?.data) {
-      setCurrentTopicName(location.state.data.title);
-      // console.log(location.state.data.title);
+    const newCourseData = location.state?.data; // From TopicInput
+    const topicIdToContinue = location.state?.topicId; // From ChatHistory
 
-      setTopics(location.state.data.data);
-      // console.log(location.state.data.data);
+    const lastActiveTopicId = localStorage.getItem("lastActiveTopicId");
+
+    let topicToLoad = null;
+
+    if (newCourseData) {
+      topicToLoad = newCourseData.id;
+      const allCourses =
+        JSON.parse(localStorage.getItem("learningJourneyHistory")) || {};
+      const course = {
+        id: newCourseData.id,
+        title: newCourseData.title,
+        topics: newCourseData.data,
+        chatThreads: {},
+        completedSubtopics: [],
+        currentChat: { topicId: null, subtopicId: null, subtopicName: "" },
+        lastAccessed: new Date().toISOString(),
+      };
+      // console.log(course);
+      allCourses[topicToLoad] = course;
+      localStorage.setItem(
+        "learningJourneyHistory",
+        JSON.stringify(allCourses)
+      );
+      localStorage.setItem("lastActiveTopicId", topicToLoad);
+      // Clean up location state
+      navigate(location.pathname, {
+        replace: true,
+        state: { topicId: topicToLoad },
+      });
+    } else if (topicIdToContinue) {
+      topicToLoad = topicIdToContinue;
+      localStorage.setItem("lastActiveTopicId", topicToLoad);
     } else {
+      topicToLoad = lastActiveTopicId;
+    }
+
+    if (topicToLoad) {
+      const allCourses =
+        JSON.parse(localStorage.getItem("learningJourneyHistory")) || {};
+      const data = allCourses[topicToLoad];
+      if (data) {
+        setCurrentTopicName(data.title);
+        setTopics(data.topics || []);
+        setCompletedSubtopics(new Set(data.completedSubtopics || []));
+        setChatThreads(data.chatThreads || {});
+        setCurrentTopicId(data.id || null);
+        setCurrentChat(
+          data.currentChat || {
+            topicId: null,
+            subtopicId: null,
+            subtopicName: "",
+          }
+        );
+      } else {
+        // If topicToLoad was specified but not found in history, go home
+        navigate("/");
+      }
+    } else {
+      // If no topic could be determined, go home
       navigate("/");
     }
-  }, [location.state]);
+  }, [location.state, navigate]);
+
+  // Save course data on any change
+  useEffect(() => {
+    if (!currentTopicName) return;
+
+    const allCourses =
+      JSON.parse(localStorage.getItem("learningJourneyHistory")) || {};
+    const totalSubtopics = calculateTotalSubtopics(topics);
+    const progress =
+      totalSubtopics > 0
+        ? Math.round((completedSubtopics.size / totalSubtopics) * 100)
+        : 0;
+
+    const courseData = {
+      id: currentTopicId,
+      title: currentTopicName,
+      topics,
+      completedSubtopics: Array.from(completedSubtopics),
+      chatThreads,
+      currentChat,
+      progress,
+      lastAccessed: new Date().toISOString(),
+    };
+
+    allCourses[currentTopicId] = courseData;
+    localStorage.setItem("learningJourneyHistory", JSON.stringify(allCourses));
+  }, [
+    currentTopicName,
+    topics,
+    completedSubtopics,
+    chatThreads,
+    currentChat,
+    currentTopicId,
+  ]);
+
+  const currentMessages = chatThreads[currentChat.topicId] || [];
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen); // Consolidated toggle function
 
@@ -60,13 +161,6 @@ function Learn() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  useEffect(() => {
-    // setTopics(courseTopics[currentTopicName]);
-    setCompletedSubtopics(new Set());
-    // setMessages([]);
-    setChatThreads({});
-    setCurrentChat({ topicId: null, subtopicId: null, subtopicName: "" });
-  }, [currentTopicName]);
   const getLlmResponseFromBackend = async (formattedMessages) => {
     // Intentionally delay for testing
     // await new Promise(resolve => setTimeout(resolve, 2000));
@@ -272,39 +366,15 @@ function Learn() {
       setIsThinking(false);
     }
   };
-  const generateNewSubtopics = async (topicName) => {
-    // console.log("called");
 
-    const res = await fetch(
-      `${import.meta.env.VITE_BACKEND_URL}/generate-course`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ topic: topicName }),
-      }
-    );
-
-    const result = await res.json();
-    if (!result.success || !result.data || !result.data.data) {
-      throw new Error(
-        result.message ||
-          "Failed to generate subtopics: Invalid response from server."
-      );
-    }
-    setTopics(result.data.data);
-    // console.log(result.data.data);
-  };
   const handleRegenerate = async () => {
     setIsGenerating(true);
     setIsThinking(true);
 
-    // Use `null` as the key for system-level, non-topic-specific messages
-    setCurrentChat({ topicId: null, subtopicId: null, subtopicName: "" });
+    // Clear progress for the current course
     setCompletedSubtopics(new Set());
     setChatThreads({});
-
+    setCurrentChat({ topicId: null, subtopicId: null, subtopicName: "" });
 
     const thinkingMessage = {
       id: Date.now(),
@@ -313,16 +383,32 @@ function Learn() {
       thinking: true,
     };
 
+    // Temporarily update chatThreads for UI
+    setChatThreads({ [null]: [thinkingMessage] });
 
     try {
-      await generateNewSubtopics(currentTopicName);
+      const res = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL}/generate-course`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ topic: currentTopicName }),
+        }
+      );
+      const result = await res.json();
+      if (!result.success || !result.data || !result.data.data) {
+        throw new Error(result.message || "Failed to generate subtopics.");
+      }
+
+      setTopics(result.data.data); // This will trigger the save useEffect
       const successMessage = {
         id: Date.now() + 1,
         sender: "llm",
         text: `Okay, I've regenerated the subtopics for ${currentTopicName}. What would you like to learn first?`,
         thinking: false,
       };
-      setChatThreads((prev) => ({ ...prev, [null]: [successMessage] }));
+      // After regeneration, chatThreads is reset, so we set the initial message.
+      setChatThreads({ [null]: [successMessage] });
     } catch (error) {
       console.error("Error generating subtopics:", error);
       const errorMessage = {
@@ -331,30 +417,24 @@ function Learn() {
         text: `Sorry, there was an error refreshing the content: ${error.message}. Please try again.`,
         thinking: false,
       };
-      setChatThreads((prev) => ({ ...prev, [null]: [errorMessage] }));
+      setChatThreads({ [null]: [errorMessage] });
     } finally {
       setIsGenerating(false);
       setIsThinking(false);
     }
   };
 
-  const totalSubtopics = topics.reduce((acc, topic) => {
-    return (
-      acc +
-      topic.subtopics.reduce((subAcc, subtopic) => {
-        if (subtopic?.subtopics?.length > 0) {
-          // Count only the number of sub-subtopics
-          return subAcc + subtopic?.subtopics?.length;
-        } else {
-          // Count the subtopic itself
-          return subAcc + 1;
-        }
-      }, 0)
-    );
-  }, 0);
+  const totalSubtopics = calculateTotalSubtopics(topics);
 
   const progress =
-    totalSubtopics > 0 ? (completedSubtopics.size / totalSubtopics) * 100 : 0;
+    totalSubtopics > 0
+      ? Math.round((completedSubtopics.size / totalSubtopics) * 100)
+      : 0;
+
+  if (!currentTopicName) {
+    // Render a loading state or null while we determine the topic or redirect
+    return null;
+  }
 
   return (
     <div className="chat-root flex h-screen overflow-y- bg-main-bg">
@@ -363,7 +443,7 @@ function Learn() {
         toggleSidebar={toggleSidebar} // Pass the general toggleSidebar function
         topicName={currentTopicName}
         setTopicName={setCurrentTopicName}
-        availableTopics={Object.keys(courseTopics)}
+        availableTopics={[]}
         topics={topics}
         completedSubtopics={completedSubtopics}
         onSubtopicSelect={handleSubtopicSelect}
