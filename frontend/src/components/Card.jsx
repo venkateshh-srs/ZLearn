@@ -23,9 +23,7 @@ export default function Card() {
           </div>
           <PopularTopics setInput={setInput} />
         </div>
-        <div className="w-full max-w-2xl bg-white mt-8 p-6 shadow-xl rounded-xl">
-          <ChatHistory isGenerating={isGenerating} />
-        </div>
+        <ChatHistory isGenerating={isGenerating} />
       </div>
     </div>
   );

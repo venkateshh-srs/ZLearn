@@ -259,7 +259,7 @@ function ChatHistory({ isGenerating }) {
   return (
     <>
       <div
-        className={`mt-8 ${
+        className={`mt-8 bg-white p-6 shadow-xl rounded-xl w-full max-w-2xl ${
           isGenerating
             ? "pointer-events-none cursor-not-allowed opacity-50"
             : ""
