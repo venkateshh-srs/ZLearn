@@ -404,7 +404,7 @@ function Learn() {
       const successMessage = {
         id: Date.now() + 1,
         sender: "llm",
-        text: `Okay, I've regenerated the subtopics for ${currentTopicName}. What would you like to learn first?`,
+        text: `I've regenerated the subtopics for ${currentTopicName}. What would you like to learn first? please select a subtopic from the sidebar`,
         thinking: false,
       };
       // After regeneration, chatThreads is reset, so we set the initial message.

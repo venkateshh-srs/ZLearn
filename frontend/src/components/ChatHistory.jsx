@@ -131,7 +131,7 @@ const RecentCourseItem = ({ course, onContinue }) => {
     .replace(",", " ,");
 
   return (
-    <div className="p-4 rounded-lg border border-gray-200 bg-white ">
+    <div className="p-4 rounded-lg border border-gray-300 bg-gray-50 mb-4 ">
       <div className="flex justify-between items-start">
         <div>
           <div className="flex items-center gap-2">
@@ -272,26 +272,24 @@ function ChatHistory({ isGenerating }) {
               Recent Courses
             </h2>
           </div>
-          <button
-            onClick={handleViewAllClick}
-            className="text-sm font-medium text-blue-600 hover:underline"
-          >
-            View All History
-          </button>
         </div>
 
         <div className="space-y-2">
-          <RecentCourseItem
-            course={recentCourse}
-            onContinue={() => handleContinue(recentCourse.id)}
-          />
+          {/* show 5 recent courses */}
+          {history.slice(0, 5).map((course) => (
+            <RecentCourseItem
+              key={course.id}
+              course={course}
+              onContinue={() => handleContinue(course.id)}
+            />
+          ))}
+
           <div className="flex justify-end pt-1">
             <button
-              onClick={handleClearAllConfirmation}
-              className="text-sm font-medium text-red-500 hover:underline flex items-center gap-1"
+              onClick={handleViewAllClick}
+              className="text-sm font-medium text-blue-600 hover:underline"
             >
-              <Trash2 size={14} />
-              Clear All History
+              View All History
             </button>
           </div>
         </div>
@@ -326,8 +324,17 @@ function ChatHistory({ isGenerating }) {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
+              <div className="flex justify-end mt-8">
+                <button
+                  onClick={handleClearAllConfirmation}
+                  className="text-sm font-medium text-red-500 hover:underline flex items-center gap-1"
+                >
+                  <Trash2 size={14} />
+                  Clear All History
+                </button>
+              </div>
             </div>
-            <div className="px-6 pb-6 flex-grow overflow-y-auto space-y-4 bg-gray-50">
+            <div className="px-6 pb-6 flex-grow overflow-y-auto space-y-4 bg-gray-50 rounded-xl">
               {filteredHistory.length > 0 ? (
                 filteredHistory.map((course) => (
                   <CourseItem
