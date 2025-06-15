@@ -311,7 +311,7 @@ const ChatInterface = ({
                       </pre>
                     ) : (
                       <ReactMarkdown
-                        remarkPlugins={[remarkMath]}
+                        remarkPlugins={[remarkMath, remarkGfm]}
                         rehypePlugins={[rehypeKatex]}
                         components={{
                           h1: ({ node, ...props }) => (

@@ -169,7 +169,7 @@ function Learn() {
     }, 0);
   };
 
-  const getLlmResponseFromBackend = async (formattedMessages) => {
+  const getLLMResponse = async (formattedMessages) => {
     // Intentionally delay for testing
     // await new Promise(resolve => setTimeout(resolve, 2000));
     try {
@@ -255,7 +255,7 @@ function Learn() {
     }));
 
     try {
-      const llmReply = await getLlmResponseFromBackend(formattedMessages);
+      const llmReply = await getLLMResponse(formattedMessages);
       const llmResponseMessage = {
         id: Date.now() + 2,
         sender: "llm",
@@ -353,7 +353,7 @@ function Learn() {
     }
 
     try {
-      const llmReply = await getLlmResponseFromBackend(formattedMessages);
+      const llmReply = await getLLMResponse(formattedMessages);
       const llmResponseMessage = {
         id: Date.now() + 2,
         sender: "llm",
