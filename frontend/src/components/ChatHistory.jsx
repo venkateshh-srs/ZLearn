@@ -118,7 +118,12 @@ const CourseItem = ({ course, onContinue, onRemove }) => {
   );
 };
 
-const RecentCourseItem = ({ course, onContinue }) => {
+const RecentCourseItem = ({
+  course,
+  onContinue,
+  totalSubtopics,
+  remainingTopics,
+}) => {
   const { title, lastAccessed, progress } = course;
   const formattedDate = new Intl.DateTimeFormat("en-US", {
     month: "short",
@@ -142,9 +147,10 @@ const RecentCourseItem = ({ course, onContinue }) => {
         </div>
       </div>
       <div className="mt-4 flex justify-between items-end">
-        <div>
+        <div className="flex flex-col gap-1">
           <p className="text-sm text-gray-500">Progress</p>
           <p className="text-md font-medium text-gray-700">{progress || 0}%</p>
+          <p className="text-xs text-gray-500 mt-1">{`${totalSubtopics} topics • ${remainingTopics} remaining`}</p>
         </div>
         <button
           onClick={onContinue}
@@ -276,13 +282,23 @@ function ChatHistory({ isGenerating }) {
 
         <div className="space-y-2">
           {/* show 5 recent courses */}
-          {history.slice(0, 5).map((course) => (
-            <RecentCourseItem
-              key={course.id}
-              course={course}
-              onContinue={() => handleContinue(course.id)}
-            />
-          ))}
+          {history.slice(0, 5).map((course) => {
+            const completedSubtopicsLength =
+              course.completedSubtopics?.length || 0;
+            const totalSubtopics = course.topics.reduce((acc, topic) => {
+              return acc + topic.subtopics.length;
+            }, 0);
+            const remainingTopics = totalSubtopics - completedSubtopicsLength;
+            return (
+              <RecentCourseItem
+                key={course.id}
+                course={course}
+                onContinue={() => handleContinue(course.id)}
+                totalSubtopics={totalSubtopics}
+                remainingTopics={remainingTopics}
+              />
+            );
+          })}
 
           <div className="flex justify-end pt-1">
             <button

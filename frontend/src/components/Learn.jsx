@@ -3,22 +3,6 @@ import Sidebar from "./Sidebar";
 import ChatInterface from "./ChatInterface";
 import { useLocation, useNavigate } from "react-router-dom";
 
-// Helper function to calculate total subtopics
-const calculateTotalSubtopics = (topics) => {
-  return (topics || []).reduce((acc, topic) => {
-    return (
-      acc +
-      (topic.subtopics || []).reduce((subAcc, subtopic) => {
-        if (subtopic?.subtopics?.length > 0) {
-          return subAcc + subtopic.subtopics.length;
-        } else {
-          return subAcc + 1;
-        }
-      }, 0)
-    );
-  }, 0);
-};
-
 function Learn() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -41,6 +25,7 @@ function Learn() {
   const [isZQuizActive, setIsZQuizActive] = useState(false);
   const [scrollToMessageId, setScrollToMessageId] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [relatedTopicsByThread, setRelatedTopicsByThread] = useState({});
 
   // Load course data on mount or location change
   useEffect(() => {
@@ -55,11 +40,13 @@ function Learn() {
       topicToLoad = newCourseData.id;
       const allCourses =
         JSON.parse(localStorage.getItem("learningJourneyHistory")) || {};
+      console.log(allCourses);
       const course = {
         id: newCourseData.id,
         title: newCourseData.title,
         topics: newCourseData.data,
         chatThreads: {},
+        relatedTopicsByThread: {},
         completedSubtopics: [],
         currentChat: { topicId: null, subtopicId: null, subtopicName: "" },
         lastAccessed: new Date().toISOString(),
@@ -71,6 +58,7 @@ function Learn() {
         JSON.stringify(allCourses)
       );
       localStorage.setItem("lastActiveTopicId", topicToLoad);
+      console.log(localStorage.getItem("lastActiveTopicId"));
       // Clean up location state
       navigate(location.pathname, {
         replace: true,
@@ -93,6 +81,7 @@ function Learn() {
         setCompletedSubtopics(new Set(data.completedSubtopics || []));
         setChatThreads(data.chatThreads || {});
         setCurrentTopicId(data.id || null);
+        setRelatedTopicsByThread(data.relatedTopicsByThread || {});
         setCurrentChat(
           data.currentChat || {
             topicId: null,
@@ -128,6 +117,7 @@ function Learn() {
       topics,
       completedSubtopics: Array.from(completedSubtopics),
       chatThreads,
+      relatedTopicsByThread,
       currentChat,
       progress,
       lastAccessed: new Date().toISOString(),
@@ -135,11 +125,13 @@ function Learn() {
 
     allCourses[currentTopicId] = courseData;
     localStorage.setItem("learningJourneyHistory", JSON.stringify(allCourses));
+    console.log(JSON.parse(localStorage.getItem("learningJourneyHistory")));
   }, [
     currentTopicName,
     topics,
     completedSubtopics,
     chatThreads,
+    relatedTopicsByThread,
     currentChat,
     currentTopicId,
   ]);
@@ -161,6 +153,22 @@ function Learn() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Helper function to calculate total subtopics
+  const calculateTotalSubtopics = (topics) => {
+    return (topics || []).reduce((acc, topic) => {
+      return (
+        acc +
+        (topic.subtopics || []).reduce((subAcc, subtopic) => {
+          if (subtopic?.subtopics?.length > 0) {
+            return subAcc + subtopic.subtopics.length;
+          } else {
+            return subAcc + 1;
+          }
+        }, 0)
+      );
+    }, 0);
+  };
+
   const getLlmResponseFromBackend = async (formattedMessages) => {
     // Intentionally delay for testing
     // await new Promise(resolve => setTimeout(resolve, 2000));
@@ -178,9 +186,10 @@ function Learn() {
       });
 
       const result = await response.json();
+      console.log(result);
 
       if (result.success) {
-        return result.message;
+        return result;
       } else {
         throw new Error(result.message || "Failed to get response");
       }
@@ -209,6 +218,7 @@ function Learn() {
       return;
     }
     setIsThinking(true);
+    setRelatedTopicsByThread((prev) => ({ ...prev, [topicId]: [] }));
     if (window.innerWidth < 768) {
       toggleSidebar();
     }
@@ -249,7 +259,7 @@ function Learn() {
       const llmResponseMessage = {
         id: Date.now() + 2,
         sender: "llm",
-        text: llmReply,
+        text: llmReply.message.message,
         thinking: false,
       };
       setChatThreads((prevThreads) => ({
@@ -258,6 +268,12 @@ function Learn() {
           msg.id === thinkingMessage.id ? llmResponseMessage : msg
         ),
       }));
+      if (llmReply.followup.show) {
+        setRelatedTopicsByThread((prev) => ({
+          ...prev,
+          [topicId]: llmReply.followup.prompts,
+        }));
+      }
       setCompletedSubtopics((prev) => new Set(prev).add(subtopicId));
     } catch (error) {
       console.error("Subtopic select LLM API error:", error);
@@ -280,6 +296,7 @@ function Learn() {
   const handleSendMessage = async (messageText, quickAction = null) => {
     setIsThinking(true);
     const { topicId, subtopicName } = currentChat;
+    setRelatedTopicsByThread((prev) => ({ ...prev, [topicId]: [] }));
 
     // Do not proceed if there is no active topic
     if (!topicId) {
@@ -340,7 +357,7 @@ function Learn() {
       const llmResponseMessage = {
         id: Date.now() + 2,
         sender: "llm",
-        text: llmReply,
+        text: llmReply.message.message,
         thinking: false,
       };
       setChatThreads((prevThreads) => ({
@@ -349,6 +366,12 @@ function Learn() {
           msg.id === thinkingMessage.id ? llmResponseMessage : msg
         ),
       }));
+      if (llmReply.followup.show) {
+        setRelatedTopicsByThread((prev) => ({
+          ...prev,
+          [topicId]: llmReply.followup.prompts,
+        }));
+      }
     } catch (error) {
       console.error("LLM API error:", error);
       const errorMessage = {
@@ -375,6 +398,7 @@ function Learn() {
     setCompletedSubtopics(new Set());
     setChatThreads({});
     setCurrentChat({ topicId: null, subtopicId: null, subtopicName: "" });
+    setRelatedTopicsByThread({});
 
     const thinkingMessage = {
       id: Date.now(),
@@ -404,7 +428,7 @@ function Learn() {
       const successMessage = {
         id: Date.now() + 1,
         sender: "llm",
-        text: `I've regenerated the subtopics for ${currentTopicName}. What would you like to learn first? please select a subtopic from the sidebar`,
+        text: `I've regenerated the subtopics for **${currentTopicName}**. What would you like to learn first? please select a subtopic from the sidebar`,
         thinking: false,
       };
       // After regeneration, chatThreads is reset, so we set the initial message.
@@ -472,6 +496,7 @@ function Learn() {
           setIsZQuizActive={setIsZQuizActive}
           scrollToMessageId={scrollToMessageId}
           setScrollToMessageId={setScrollToMessageId}
+          relatedTopics={relatedTopicsByThread[currentChat.topicId] || []}
         />
       </div>
     </div>

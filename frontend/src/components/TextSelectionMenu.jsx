@@ -2,7 +2,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Lightbulb, BookOpen, Search } from "lucide-react";
 
-const TextSelectionMenu = ({ onAction, chatContainerRef, isQuizActive, isThinking }) => {
+const TextSelectionMenu = ({
+  onAction,
+  chatContainerRef,
+  isQuizActive,
+  isThinking,
+}) => {
   const [selectedText, setSelectedText] = useState("");
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [showMenu, setShowMenu] = useState(false);
@@ -16,10 +21,21 @@ const TextSelectionMenu = ({ onAction, chatContainerRef, isQuizActive, isThinkin
       const selection = window.getSelection();
       const text = selection?.toString().trim();
 
-      if (text && text.length >= 10 ) {
+      if (text && text.length >= 10) {
         const range = selection?.getRangeAt(0);
-        selectionRef.current = range;
+        if (!range) return;
+
+        let container = range.commonAncestorContainer;
+        if (container.nodeType !== Node.ELEMENT_NODE) {
+          container = container.parentNode;
+        }
+
+        if (!container.closest(".llm-message-content")) {
+          return;
+        }
+
         const rect = range?.getBoundingClientRect();
+        selectionRef.current = range;
         const chatRect = chatContainerRef.current?.getBoundingClientRect();
 
         if (rect && chatRect) {
@@ -77,7 +93,11 @@ const TextSelectionMenu = ({ onAction, chatContainerRef, isQuizActive, isThinkin
   }, [chatContainerRef]);
 
   const handleAction = (action) => {
-    onAction(action, selectedText);
+    console.log(selectedText);
+    const selectedTextt = JSON.stringify(selectedText);
+    console.log(selectedTextt);
+
+    onAction(action, selectedTextt);
     setShowMenu(false);
     setSelectedText("");
     selectionRef.current = null;
@@ -89,7 +109,7 @@ const TextSelectionMenu = ({ onAction, chatContainerRef, isQuizActive, isThinkin
   return (
     <div
       ref={menuRef}
-      className="fixed z-10 bg-white border border-gray-200 rounded-lg shadow-lg p-2 flex gap-1"
+      className="fixed z-10 bg-white border border-gray-200 rounded-lg shadow-lg p-2 flex gap-2"
       style={{
         left: `${menuPosition.x}px`,
         top: `${menuPosition.y}px`,

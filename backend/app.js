@@ -6,6 +6,7 @@ import { zodResponseFormat } from "openai/helpers/zod";
 import dotenv from "dotenv";
 import courseContentSchema from "./zodSchemas/courseContentSchema.js";
 import QuizSchema from "./zodSchemas/quizSchema.js";
+import { followupResponseSchema } from "./zodSchemas/followupResponseSchema.js";
 dotenv.config();
 const app = express();
 app.use(cors());
@@ -184,6 +185,7 @@ If the user input is vague, harmful, or unsuitable for a course:
     }
   }
 }
+
 const getAllSubtopicNames = (topics) => {
   const leafNames = [];
 
@@ -204,8 +206,122 @@ const getAllSubtopicNames = (topics) => {
   return leafNames;
 };
 
+async function getFollowupPrompts(messages) {
+  // Only generate follow-ups if the conversation seems educational
+
+  const lastUserMessage = messages
+    .filter((m) => m.role === "user")
+    .slice(-1)[0];
+  const lastAIResponse = messages
+    .filter((m) => m.role === "assistant")
+    .slice(-1)[0];
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [
+      {
+        role: "system",
+        content: `You are an expert educational follow-up prompt generator for a learning app. Your goal is to create the most logical, intuitive, and reasoning-based follow-up questions.
+
+                  **PROMPT GENERATION STRATEGY:**
+                  
+                  1. **Logical Progression Types:**
+                     - Bridge concepts: Connect current topic to related concepts
+                     - Depth exploration: Dig deeper into the current topic
+                     - Application thinking: How to use this knowledge
+                     - Critical analysis: Question assumptions and limitations
+                     - Comparative analysis: Compare with alternatives/contrasts
+                     - Causal reasoning: Explore cause-effect relationships
+
+                  2. **Reasoning Categories to Include:**
+                     - **Why/How questions**: Understanding mechanisms
+                     - **What-if scenarios**: Hypothetical exploration  
+                     - **Comparison prompts**: Contrasting concepts
+                     - **Application prompts**: Real-world usage
+                     - **Troubleshooting**: Common problems/solutions
+                     - **Advanced concepts**: Next-level topics
+
+                  **QUALITY CRITERIA:**
+                  - Each prompt should be 8-15 words (concise but complete)
+                  - Must be directly relevant to the current conversation
+                  - Should build a logical learning pathway
+                  - Include action-oriented language
+                  - Mix different cognitive levels (remember, understand, apply, analyze)
+
+                  **PROMPT TYPES TO GENERATE:**
+                  1. **Conceptual Deepening**: "Why does [concept] work this way?"
+                  2. **Practical Application**: "How would you implement this in [scenario]?"
+                  3. **Comparative Analysis**: "How does this compare to [alternative]?"
+                  4. **Problem-Solving**: "What if [variable] changes?"
+                  5. **Real-world Connection**: "Where do you see this used professionally?"
+                  6. **Troubleshooting**: "What common mistakes should be avoided?"
+
+                  **DECISION LOGIC FOR "show":**
+                  Set "show": true ONLY when:
+                  - The conversation is educational and substantive
+                  - The AI provided helpful information worth expanding on
+                  - There are clear logical next steps for learning
+                  - The topic has depth and related concepts to explore
+                  - The user seems engaged in learning (not just casual chat)
+
+                  **PERSONALIZATION:**
+                  - Adapt language complexity to user's demonstrated level
+                  - Reference specific terms/concepts from the current conversation
+                  - Consider the learning progression within the course structure
+
+                  **OUTPUT FORMAT:**
+                  Return JSON with exactly this structure:
+                  {
+                    "show": boolean,
+                    "prompts": [
+                      "prompt1",
+                      "prompt2", 
+                      "prompt3",
+                      "prompt4" // optional 4th prompt for complex topics
+                    ],
+                    "reasoning": "Brief explanation of why these prompts were chosen"
+                  }
+
+                  **EXAMPLES OF EXCELLENT PROMPTS:**
+                  - "How would this scale in enterprise applications?"
+                  - "What are the performance implications of this approach?"
+                  - "Can you walk through a debugging scenario?"
+                  - "How does this pattern prevent common security issues?"
+                  - "What are the trade-offs compared to alternatives?"
+                  - "When would you choose this over simpler solutions?"`,
+      },
+      ...messages,
+      {
+        role: "user",
+        content: `Based on our conversation above, generate the most logical and intuitive follow-up prompts. 
+                  
+                  Current context:
+                  - Last question: "${lastUserMessage?.content || "N/A"}"
+                  - Key concepts discussed: [Extract from conversation]
+                  - Learning level demonstrated: [Assess from user's questions]
+                  
+                  Focus on creating prompts that:
+                  1. Build naturally from what we just discussed
+                  2. Help deepen understanding through reasoning
+                  3. Connect to practical applications
+                  4. Encourage critical thinking
+                  5. Explore related concepts logically`,
+      },
+    ],
+    response_format: zodResponseFormat(
+      followupResponseSchema,
+      "followup_response"
+    ),
+    temperature: 0.7, // Slight creativity for varied prompts
+  });
+  const result = JSON.parse(completion.choices[0].message.content);
+  console.log(result);
+
+  return result;
+}
+
 //user asks question-> take response from backend
-const askAI = async (messages, topic, topics) => {
+const getAnswerResponse = async (messages, topic, topics) => {
   // console.log(subtopics);
   console.log(topics);
   const topicsNames = topics.map((topic) => topic.name);
@@ -213,13 +329,13 @@ const askAI = async (messages, topic, topics) => {
   const subtopicsNames = subtopics.map((subtopic) => subtopic.name);
   const allSubtopicsNames = getAllSubtopicNames(topics);
   console.log(subtopicsNames);
-  try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: `You are a helpful assistant.
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [
+      {
+        role: "system",
+        content: `You are a helpful assistant.
                 You are given the following context:
                 - A **current topic**: "${topic}"
                 - A **list of topics**: ${topicsNames}
@@ -268,91 +384,47 @@ const askAI = async (messages, topic, topics) => {
                 ---
 
                 Now, process the user query according to these updated rules.`,
-        },
-        ...messages,
-      ],
-      store: true,
-    });
+      },
+      ...messages,
+    ],
+    store: true,
+  });
 
-    const result = completion.choices[0].message.content;
+  const result = completion.choices[0].message.content;
+  console.log(result);
 
-    console.log(result);
+  return {
+    success: true,
+    message: result,
+  };
+};
+async function getAIResponse(messages, currentTopic, topics) {
+  try {
+    // 🚀 PARALLEL API CALLS for better latency
+    const [answerResponse, followupResponse] = await Promise.all([
+      getAnswerResponse(messages, currentTopic, topics),
+      getFollowupPrompts(messages),
+    ]);
+
     return {
       success: true,
-      message: result,
+      message: answerResponse,
+      followup: followupResponse,
     };
   } catch (error) {
-    console.error("Error during content generation or validation:", error);
+    console.error("AI Response Error:", error);
     return {
       success: false,
-      message: "An unexpected error occurred. Please try again later.",
-      error: error.message,
+      message: "I'm having trouble processing your request right now.",
+      followup: { show: false, prompts: [] },
     };
   }
-};
+}
 
 app.post("/generate-course", async (req, res) => {
   const topicName = req.body.topic;
   // // console.log("gotcha");
   const response = await generateCourseContents(topicName);
-  //   const response = {
-  //     success: true,
-  //     title: "Comprehensive Angular Development",
-  //     message:
-  //       "This course outline covers the fundamentals and advanced concepts of Angular, suitable for both beginners and intermediate developers.",
-  //     data: [
-  //       {
-  //         id: "1",
-  //         name: "Introduction to Angular",
-  //         subtopics: [
-  //           { id: "1.1", name: "What is Angular?" },
-  //           { id: "1.2", name: "Angular vs Other Frameworks" },
-  //           { id: "1.3", name: "Setting Up the Development Environment" },
-  //         ],
-  //       },
-  //       {
-  //         id: "2",
-  //         name: "Core Concepts",
-  //         subtopics: [
-  //           { id: "2.1", name: "Modules and Components" },
-  //           { id: "2.2", name: "Templates and Data Binding" },
-  //           { id: "2.3", name: "Directives and Pipes" },
-  //           { id: "2.4", name: "Component Communication" },
-  //         ],
-  //       },
-  //       {
-  //         id: "3",
-  //         name: "Working with Data",
-  //         subtopics: [
-  //           { id: "3.1", name: "Services and Dependency Injection" },
-  //           { id: "3.2", name: "HTTP Client and APIs" },
-  //           { id: "3.3", name: "Observables and RxJS" },
-  //         ],
-  //       },
-  //       {
-  //         id: "4",
-  //         name: "Advanced Angular Concepts",
-  //         subtopics: [
-  //           { id: "4.1", name: "Routing and Navigation" },
-  //           { id: "4.2", name: "Lazy Loading Modules" },
-  //           { id: "4.3", name: "Forms (Template-driven & Reactive)" },
-  //           { id: "4.4", name: "State Management with NgRx" },
-  //         ],
-  //       },
-  //       {
-  //         id: "5",
-  //         name: "Deployment and Angular Ecosystem",
-  //         subtopics: [
-  //           { id: "5.1", name: "Testing and Debugging" },
-  //           { id: "5.2", name: "Building and Optimization" },
-  //           { id: "5.3", name: "Angular CLI and Tools" },
-  //           { id: "5.4", name: "Deploying to Production" },
-  //         ],
-  //       },
-  //     ],
-  //   };
-  // // console.log(response);
-
   if (response.success) {
     res.status(200).json({ success: true, data: response });
   } else {
@@ -366,12 +438,17 @@ app.post("/generate-course", async (req, res) => {
 
 app.post("/chat", async (req, res) => {
   // // console.log(req.body);
+  console.log("gotcha");
   const messages = req.body.formattedMessages;
   const currentTopic = req.body.currentTopicName;
   const topics = req.body.topics;
-  const result = await askAI(messages, currentTopic, topics);
+  const result = await getAIResponse(messages, currentTopic, topics);
   if (result.success) {
-    res.status(200).json({ success: true, message: result.message });
+    res.status(200).json({
+      success: true,
+      message: result.message,
+      followup: result.followup,
+    });
   } else {
     res.status(500).json({ success: false, message: result.message });
   }

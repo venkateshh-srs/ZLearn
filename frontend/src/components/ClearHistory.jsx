@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Trash2 } from "lucide-react";
 
 
-export default function ClearHistory({ handleClearAllHistory }) {
+    export default function ClearHistory({ handleClearAllHistory }) {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const confirmClear = () => {

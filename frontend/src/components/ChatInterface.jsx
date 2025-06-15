@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import QuizComponent from "./Quiz";
 import TextSelectionMenu from "./TextSelectionMenu"; // Import the new component
+import RelatedTopics from "./RelatedTopics";
 
 const ChatInterface = ({
   messages,
@@ -36,7 +37,11 @@ const ChatInterface = ({
   currentChat,
   scrollToMessageId,
   setScrollToMessageId,
+  relatedTopics,
+  setRelatedTopics,
 }) => {
+  console.log("rendered");
+
   const [inputValue, setInputValue] = useState("");
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null); // Create a ref for the chat container
@@ -45,6 +50,11 @@ const ChatInterface = ({
   const [showRawText, setShowRawText] = useState(false);
   const [isQuizActive, setIsQuizActive] = useState(false);
   const [activeQuizSubtopic, setActiveQuizSubtopic] = useState("");
+
+  const handleRelatedTopicClick = (promptIndex) => {
+    const prompt = relatedTopics[promptIndex];
+    onSendMessage(prompt);
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -139,6 +149,7 @@ const ChatInterface = ({
 
   function replaceLatexInline(text) {
     if (!text) return "";
+    // text = text.replace(/[\u007f-\u0018-\u0019]/g, "");
     text = text.replace(/\$\$\s*([\s\S]*?)\s*\$\$/g, (_, inner) => {
       const cleaned = inner.replace(/\n+/g, " ").trim();
       return `$$${cleaned}$$`;
@@ -151,6 +162,11 @@ const ChatInterface = ({
       const cleanedInner = inner.trim();
       return `$${cleanedInner}$`;
     });
+    // text = text.replace(
+    //   /\\text\{[^}]+\}(?:[_^]\{[^}]+\})*/g,
+    //   (match) => `$${match}$`
+    // );
+
     return text.replace(/\\\((.+?)\\\)/g, (_, inner) => {
       return `$${inner.trim()}$`;
     });
@@ -160,7 +176,7 @@ const ChatInterface = ({
     <div className="flex flex-col h-full max-h-full overflow-hidden bg-white z-1">
       {/* Add the TextSelectionMenu component here */}
       {/* {console.log(topics, currentChat)} */}
-      {console.log(currentChat)}
+      {/* {console.log(currentChat)} */}
       <TextSelectionMenu
         onAction={handleTextSelectionAction}
         chatContainerRef={chatContainerRef}
@@ -284,12 +300,18 @@ const ChatInterface = ({
                     )}
                   </div>
                 ) : (
-                  <>
-                    {showRawText ? (
-                      <div className="text-sm text-gray-500">{msg.text}</div>
+                  <div
+                    className={
+                      msg.sender === "llm" ? "llm-message-content" : ""
+                    }
+                  >
+                    {showRawText && msg.sender === "llm" ? (
+                      <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans">
+                        {msg.text}
+                      </pre>
                     ) : (
                       <ReactMarkdown
-                        remarkPlugins={[remarkMath, remarkGfm]}
+                        remarkPlugins={[remarkMath]}
                         rehypePlugins={[rehypeKatex]}
                         components={{
                           h1: ({ node, ...props }) => (
@@ -380,19 +402,32 @@ const ChatInterface = ({
                         {replaceLatexInline(msg.text)}
                       </ReactMarkdown>
                     )}
-                  </>
+                  </div>
                 )}
                 {/* button to toggle raw text and markdown */}
-                <button
-                  onClick={() => setShowRawText(!showRawText)}
-                  className="text-xs text-gray-500 hover:text-gray-700"
-                >
-                  {showRawText ? "Show Markdown" : "Show Raw Text"}
-                </button>
+                {msg.sender === "llm" && !msg.thinking && (
+                  <button
+                    onClick={() => setShowRawText(!showRawText)}
+                    className="text-xs text-gray-500 hover:text-gray-700 mt-2"
+                  >
+                    {showRawText ? "Show Markdown" : "Show Raw Text"}
+                  </button>
+                )}
               </div>
             </div>
           </div>
         ))}
+        {/* Related Topics Section */}
+        {messages.length > 1 &&
+          !isQuizActive &&
+          !isThinking &&
+          relatedTopics.length > 0 && (
+            <RelatedTopics
+              className="animate-in fade-in-0 duration-300"
+              relatedTopics={relatedTopics}
+              handleRelatedTopicClick={handleRelatedTopicClick}
+            />
+          )}
         <div ref={messagesEndRef} />
       </div>
 
