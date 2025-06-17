@@ -39,6 +39,7 @@ const ChatInterface = ({
   setScrollToMessageId,
   relatedTopics,
   setRelatedTopics,
+  thinkingMessageActive,
 }) => {
   console.log("rendered");
 
@@ -50,9 +51,13 @@ const ChatInterface = ({
   const [showRawText, setShowRawText] = useState(false);
   const [isQuizActive, setIsQuizActive] = useState(false);
   const [activeQuizSubtopic, setActiveQuizSubtopic] = useState("");
+  const Spinner = () => (
+    <Loader size={16} className="animate-spin text-dark-gray" />
+  );
 
-  const handleRelatedTopicClick = (promptIndex) => {
-    const prompt = relatedTopics[promptIndex];
+  const handleRelatedTopicClick = (prompt) => {
+    console.log(prompt);
+    // console.log(prompt[index]);
     onSendMessage(prompt);
   };
 
@@ -229,183 +234,129 @@ const ChatInterface = ({
             ref={(el) => (messageRefs.current[msg.id] = el)}
             className={`flex ${
               msg.sender === "user" ? "justify-end" : "justify-start"
-            } ${
-              msg.sender === "system" || msg.sender === "system_info"
-                ? "w-full justify-center"
-                : ""
-            } ${
-              msg.text === "Generating new subtopics..." &&
-              msg.sender === "llm" &&
-              msg.thinking
-                ? "w-full justify-center"
-                : ""
-            }`}
+            } ${msg.sender === "system" ? "w-full justify-center" : ""}`}
           >
             <div
               className={`max-w-lg sm:max-w-lg md:max-w-md lg:max-w-lg xl:max-w-2xl p-3 rounded-lg shadow overflow-hidden ${
                 msg.sender === "user"
                   ? "bg-message-user text-gray-900 rounded-br-none border border-sky-100"
                   : msg.sender === "llm"
-                  ? msg.text === "Generating new subtopics..." && msg.thinking
-                    ? "bg-blue-100 border border-blue-300 text-sky-800 text-center w-full max-w-md mx-auto text-sm"
-                    : "bg-message-llm text-dark-gray border border-gray-100 rounded-bl-none"
-                  : msg.sender === "system" || msg.sender === "system_info"
+                  ? "bg-message-llm text-dark-gray border border-gray-100 rounded-bl-none"
+                  : msg.sender === "system"
                   ? "bg-blue-100 border border-blue-300 text-blue-800 text-center w-full max-w-md mx-auto text-sm"
                   : ""
               }`}
             >
-              {msg.sender !== "system" &&
-                msg.sender !== "system_info" &&
-                !(
-                  msg.text === "Generating new subtopics..." &&
-                  msg.sender === "llm" &&
-                  msg.thinking
-                ) && (
-                  <div className="flex items-center mb-1">
-                    {msg.sender === "user" ? (
-                      <User size={16} className="mr-2 opacity-80" />
-                    ) : (
-                      <Bot size={16} className="mr-2 opacity-80" />
-                    )}
-                    <span className="font-semibold text-xs opacity-80">
-                      {msg.sender === "user" ? "You" : "Zlearn"}
-                    </span>
-                  </div>
-                )}
+              {msg.sender !== "system" && (
+                <div className="flex items-center mb-1">
+                  {msg.sender === "user" ? (
+                    <User size={16} className="mr-2 opacity-80" />
+                  ) : (
+                    <Bot size={16} className="mr-2 opacity-80" />
+                  )}
+                  <span className="font-semibold text-xs opacity-80">
+                    {msg.sender === "user" ? "You" : "Zlearn"}
+                  </span>
+                </div>
+              )}
               <div
                 className={`text-sm md:text-[15.3px] break-words gap-2 ${
-                  msg.sender === "system" ||
-                  msg.sender === "system_info" ||
-                  (msg.text === "Generating new subtopics..." &&
-                    msg.sender === "llm" &&
-                    msg.thinking)
-                    ? "justify-center"
-                    : ""
+                  msg.sender === "system" ? "justify-center" : ""
                 }`}
               >
-                {msg.thinking ? (
-                  <div className="flex flex-row gap-1 items-center justify-center">
-                    {msg.text === "Generating new subtopics..." && (
-                      <Loader
-                        size={16}
-                        className="animate-spin text-dark-gray mr-2"
-                      />
-                    )}
-                    <span>{msg.text}</span>
-                    {msg.text !== "Generating new subtopics..." && (
-                      <Loader
-                        size={16}
-                        className="animate-spin text-dark-gray ml-2"
-                      />
-                    )}
-                  </div>
-                ) : (
-                  <div
-                    className={
-                      msg.sender === "llm" ? "llm-message-content" : ""
-                    }
-                  >
-                    {showRawText && msg.sender === "llm" ? (
-                      <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans">
-                        {msg.text}
-                      </pre>
-                    ) : (
-                      <ReactMarkdown
-                        remarkPlugins={[remarkMath, remarkGfm]}
-                        rehypePlugins={[rehypeKatex]}
-                        components={{
-                          h1: ({ node, ...props }) => (
-                            <h1
-                              className="text-2xl font-bold my-4"
-                              {...props}
-                            />
-                          ),
-                          h2: ({ node, ...props }) => (
-                            <h2 className="text-xl font-bold my-3" {...props} />
-                          ),
-                          h3: ({ node, ...props }) => (
-                            <h3 className="text-lg font-bold my-1" {...props} />
-                          ),
-                          h4: ({ node, ...props }) => (
-                            <h4
-                              className="text-base font-bold my-1"
-                              {...props}
-                            />
-                          ),
-                          h5: ({ node, ...props }) => (
-                            <h5 className="text-sm font-bold my-1" {...props} />
-                          ),
-                          h6: ({ node, ...props }) => (
-                            <h6 className="text-xs font-bold my-1" {...props} />
-                          ),
-                          p: ({ children }) => (
-                            <p className="mb-2 leading-relaxed">{children}</p>
-                          ),
-                          strong: ({ children }) => (
-                            <strong className="font-semibold">
+                <div
+                  className={msg.sender === "llm" ? "llm-message-content" : ""}
+                >
+                  {showRawText && msg.sender === "llm" ? (
+                    <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans">
+                      {msg.text}
+                    </pre>
+                  ) : (
+                    <ReactMarkdown
+                      remarkPlugins={[remarkMath, remarkGfm]}
+                      rehypePlugins={[rehypeKatex]}
+                      components={{
+                        h1: ({ node, ...props }) => (
+                          <h1 className="text-2xl font-bold my-4" {...props} />
+                        ),
+                        h2: ({ node, ...props }) => (
+                          <h2 className="text-xl font-bold my-3" {...props} />
+                        ),
+                        h3: ({ node, ...props }) => (
+                          <h3 className="text-lg font-bold my-1" {...props} />
+                        ),
+                        h4: ({ node, ...props }) => (
+                          <h4 className="text-base font-bold my-1" {...props} />
+                        ),
+                        h5: ({ node, ...props }) => (
+                          <h5 className="text-sm font-bold my-1" {...props} />
+                        ),
+                        h6: ({ node, ...props }) => (
+                          <h6 className="text-xs font-bold my-1" {...props} />
+                        ),
+                        p: ({ children }) => (
+                          <p className="mb-2 leading-relaxed">{children}</p>
+                        ),
+                        strong: ({ children }) => (
+                          <strong className="font-semibold">{children}</strong>
+                        ),
+                        ul: ({ children }) => (
+                          <ul className="list-outside my-4 pl-4 list-disc">
+                            {children}
+                          </ul>
+                        ),
+                        ol: ({ children }) => (
+                          <ol className="my-4 pl-6 list-decimal">{children}</ol>
+                        ),
+                        li: ({ children }) => (
+                          <li className="mb-2">{children}</li>
+                        ),
+                        blockquote: ({ children }) => (
+                          <blockquote className="border-l-4 border-gray-300 pl-4 italic my-4 text-gray-600">
+                            {children}
+                          </blockquote>
+                        ),
+                        pre: ({ children }) => (
+                          <pre className="bg-gray-800 text-white p-4 rounded-md my-4 overflow-x-auto text-sm">
+                            {children}
+                          </pre>
+                        ),
+                        table: ({ children }) => (
+                          <div className="overflow-x-auto my-4">
+                            <table className="min-w-full border border-gray-300">
                               {children}
-                            </strong>
-                          ),
-                          ul: ({ children }) => (
-                            <ul className="list-outside my-4 pl-4 list-disc">
-                              {children}
-                            </ul>
-                          ),
-                          ol: ({ children }) => (
-                            <ol className="my-4 pl-6 list-decimal">
-                              {children}
-                            </ol>
-                          ),
-                          li: ({ children }) => (
-                            <li className="mb-2">{children}</li>
-                          ),
-                          blockquote: ({ children }) => (
-                            <blockquote className="border-l-4 border-gray-300 pl-4 italic my-4 text-gray-600">
-                              {children}
-                            </blockquote>
-                          ),
-                          pre: ({ children }) => (
-                            <pre className="bg-gray-800 text-white p-4 rounded-md my-4 overflow-x-auto text-sm">
-                              {children}
-                            </pre>
-                          ),
-                          table: ({ children }) => (
-                            <div className="overflow-x-auto my-4">
-                              <table className="min-w-full border border-gray-300">
-                                {children}
-                              </table>
-                            </div>
-                          ),
-                          thead: ({ children }) => (
-                            <thead className="bg-gray-100 border-b border-gray-300">
-                              {children}
-                            </thead>
-                          ),
-                          tbody: ({ children }) => <tbody>{children}</tbody>,
-                          tr: ({ children }) => (
-                            <tr className="border-b border-gray-200">
-                              {children}
-                            </tr>
-                          ),
-                          th: ({ children }) => (
-                            <th className="px-4 py-2 text-left font-semibold text-sm text-gray-700">
-                              {children}
-                            </th>
-                          ),
-                          td: ({ children }) => (
-                            <td className="px-4 py-2 text-sm text-gray-800">
-                              {children}
-                            </td>
-                          ),
-                        }}
-                      >
-                        {replaceLatexInline(msg.text)}
-                      </ReactMarkdown>
-                    )}
-                  </div>
-                )}
+                            </table>
+                          </div>
+                        ),
+                        thead: ({ children }) => (
+                          <thead className="bg-gray-100 border-b border-gray-300">
+                            {children}
+                          </thead>
+                        ),
+                        tbody: ({ children }) => <tbody>{children}</tbody>,
+                        tr: ({ children }) => (
+                          <tr className="border-b border-gray-200">
+                            {children}
+                          </tr>
+                        ),
+                        th: ({ children }) => (
+                          <th className="px-4 py-2 text-left font-semibold text-sm text-gray-700">
+                            {children}
+                          </th>
+                        ),
+                        td: ({ children }) => (
+                          <td className="px-4 py-2 text-sm text-gray-800">
+                            {children}
+                          </td>
+                        ),
+                      }}
+                    >
+                      {replaceLatexInline(msg.text)}
+                    </ReactMarkdown>
+                  )}
+                </div>
                 {/* button to toggle raw text and markdown */}
-                {msg.sender === "llm" && !msg.thinking && (
+                {msg.sender === "llm" && (
                   <button
                     onClick={() => setShowRawText(!showRawText)}
                     className="text-xs text-gray-500 hover:text-gray-700 mt-2"
@@ -413,21 +364,40 @@ const ChatInterface = ({
                     {showRawText ? "Show Markdown" : "Show Raw Text"}
                   </button>
                 )}
+
+                {/* --- Related Topics Section moved inside the LLM message rendering --- */}
+                {msg.sender === "llm" &&
+                  msg.prompts &&
+                  msg.prompts.length > 0 && (
+                    <RelatedTopics
+                      className="animate-in fade-in-0 duration-300 mt-4" // Added margin-top for spacing
+                      relatedTopics={msg.prompts} // Use msg.prompts if it directly holds the topics
+                      handleRelatedTopicClick={handleRelatedTopicClick}
+                    />
+                  )}
               </div>
             </div>
           </div>
         ))}
-        {/* Related Topics Section */}
-        {messages.length > 1 &&
-          !isQuizActive &&
-          !isThinking &&
-          relatedTopics.length > 0 && (
-            <RelatedTopics
-              className="animate-in fade-in-0 duration-300"
-              relatedTopics={relatedTopics}
-              handleRelatedTopicClick={handleRelatedTopicClick}
-            />
-          )}
+        {/* --- Standalone Thinking Message --- */}
+        {thinkingMessageActive && isThinking && (
+          <div className="flex w-full justify-start">
+            <div className="max-w-lg sm:max-w-lg md:max-w-md lg:max-w-lg xl:max-w-2xl pl-2 pt-2 pr-5 pb-4 rounded-lg shadow overflow-hidden bg-message-llm text-dark-gray border border-gray-100 rounded-bl-none">
+              {/* Added the logo and sender label */}
+              <div className="flex items-center mb-1">
+                <Bot size={16} className="mr-2 opacity-80" />{" "}
+                {/* Bot icon for Zlearn */}
+                <span className="font-semibold text-xs opacity-80">Zlearn</span>
+              </div>
+              {/* End of added logo and sender label */}
+
+              <div className="flex flex-row gap-1 items-center mt-2">
+                <Spinner /> {/* Your spinner component */}
+                <span>Thinking...</span>
+              </div>
+            </div>
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 

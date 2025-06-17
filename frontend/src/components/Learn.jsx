@@ -18,6 +18,8 @@ function Learn() {
     subtopicName: "",
   });
   const [currentTopicId, setCurrentTopicId] = useState(null);
+  const [currentStream, setCurrentStream] = useState("");
+  const [thinkingMessageActive, setThinkingMessageActive] = useState(true);
 
   // UI State
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -168,10 +170,54 @@ function Learn() {
       );
     }, 0);
   };
+  const streamLLMResponse = async (formattedMessages) => {
+    setCurrentStream("");
+    console.log("got it");
 
+    const response = await fetch(
+      `${import.meta.env.VITE_BACKEND_URL}/stream-response`,
+      {
+        method: "POST",
+        body: JSON.stringify({ messages: formattedMessages }),
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+
+      // Parse SSE format
+      const lines = chunk
+        .split("\n")
+        .filter((line) => line.startsWith("data: "));
+      for (const line of lines) {
+        console.log(line);
+
+        const json = line.replace(/^data: /, "");
+        if (json === "[DONE]") break;
+
+        try {
+          const parsed = JSON.parse(json);
+          const token = parsed.choices?.[0]?.delta?.content || "";
+          setCurrentStream((prev) => prev + token);
+          console.log(currentStream);
+        } catch (err) {
+          console.error("Error parsing chunk", err);
+        }
+      }
+    }
+  };
   const getLLMResponse = async (formattedMessages) => {
     // Intentionally delay for testing
     // await new Promise(resolve => setTimeout(resolve, 2000));
+    // setCurrentStream("");
+    // await streamLLMResponse(formattedMessages);
     try {
       const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/chat`, {
         method: "POST",
@@ -218,6 +264,7 @@ function Learn() {
       return;
     }
     setIsThinking(true);
+    setThinkingMessageActive(true);
     setRelatedTopicsByThread((prev) => ({ ...prev, [topicId]: [] }));
     if (window.innerWidth < 768) {
       toggleSidebar();
@@ -242,7 +289,7 @@ function Learn() {
 
     setChatThreads((prevThreads) => ({
       ...prevThreads,
-      [topicId]: [...previousMessages, userMessage, thinkingMessage],
+      [topicId]: [...previousMessages, userMessage],
     }));
 
     // Prepare messages for API, using the context from the correct thread
@@ -262,18 +309,18 @@ function Learn() {
         text: llmReply.message.message,
         thinking: false,
       };
+
+      if (llmReply.followup.show) {
+        // setRelatedTopicsByThread((prev) => ({
+        //   ...prev,
+        //   [topicId]: llmReply.followup.prompts,
+        // }));
+        llmResponseMessage.prompts = llmReply.followup.prompts;
+      }
       setChatThreads((prevThreads) => ({
         ...prevThreads,
-        [topicId]: prevThreads[topicId].map((msg) =>
-          msg.id === thinkingMessage.id ? llmResponseMessage : msg
-        ),
+        [topicId]: [...prevThreads[topicId], llmResponseMessage],
       }));
-      if (llmReply.followup.show) {
-        setRelatedTopicsByThread((prev) => ({
-          ...prev,
-          [topicId]: llmReply.followup.prompts,
-        }));
-      }
       setCompletedSubtopics((prev) => new Set(prev).add(subtopicId));
     } catch (error) {
       console.error("Subtopic select LLM API error:", error);
@@ -290,11 +337,13 @@ function Learn() {
       }));
     } finally {
       setIsThinking(false);
+      setThinkingMessageActive(false);
     }
   };
 
   const handleSendMessage = async (messageText, quickAction = null) => {
     setIsThinking(true);
+    setThinkingMessageActive(true);
     const { topicId, subtopicName } = currentChat;
     setRelatedTopicsByThread((prev) => ({ ...prev, [topicId]: [] }));
 
@@ -332,7 +381,7 @@ function Learn() {
 
     setChatThreads((prevThreads) => ({
       ...prevThreads,
-      [topicId]: [...previousMessages, userMessage, thinkingMessage],
+      [topicId]: [...previousMessages, userMessage],
     }));
 
     // Prepare messages for API
@@ -354,24 +403,30 @@ function Learn() {
 
     try {
       const llmReply = await getLLMResponse(formattedMessages);
+      console.log(llmReply);
+
       const llmResponseMessage = {
         id: Date.now() + 2,
         sender: "llm",
         text: llmReply.message.message,
         thinking: false,
       };
+
+      if (llmReply.followup.show) {
+        // setRelatedTopicsByThread((prev) => ({
+        //   ...prev,
+        //   [topicId]: llmReply.followup.prompts,
+        // }));
+        console.log(llmReply.followup.prompts);
+
+        llmResponseMessage.prompts = llmReply.followup.prompts;
+      }
+      console.log(llmResponseMessage);
+
       setChatThreads((prevThreads) => ({
         ...prevThreads,
-        [topicId]: prevThreads[topicId].map((msg) =>
-          msg.id === thinkingMessage.id ? llmResponseMessage : msg
-        ),
+        [topicId]: [...prevThreads[topicId], llmResponseMessage],
       }));
-      if (llmReply.followup.show) {
-        setRelatedTopicsByThread((prev) => ({
-          ...prev,
-          [topicId]: llmReply.followup.prompts,
-        }));
-      }
     } catch (error) {
       console.error("LLM API error:", error);
       const errorMessage = {
@@ -387,6 +442,7 @@ function Learn() {
       }));
     } finally {
       setIsThinking(false);
+      setThinkingMessageActive(false);
     }
   };
 
@@ -497,6 +553,7 @@ function Learn() {
           scrollToMessageId={scrollToMessageId}
           setScrollToMessageId={setScrollToMessageId}
           relatedTopics={relatedTopicsByThread[currentChat.topicId] || []}
+          thinkingMessageActive={thinkingMessageActive}
         />
       </div>
     </div>

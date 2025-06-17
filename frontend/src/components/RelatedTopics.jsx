@@ -12,7 +12,10 @@ function RelatedTopics({ relatedTopics, handleRelatedTopicClick }) {
           {relatedTopics.map((prompt, index) => (
             <button
               key={index}
-              onClick={() => handleRelatedTopicClick(index)}
+              onClick={() => {
+                console.log("Prompt clicked:", prompt); // Add this line
+                handleRelatedTopicClick(prompt);
+              }}
               className="flex w-full items-center gap-2 rounded-md bg-gray-50 p-3 text-left hover:cursor-pointer hover:bg-blue-50"
             >
               <ArrowRight className="flex-shrink-0 text-blue-500" size={15} />

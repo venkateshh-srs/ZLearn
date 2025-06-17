@@ -64,6 +64,76 @@ const generateQuiz = async (topicName, messages) => {
   }
 };
 
+async function streamResponse(messages, res) {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+
+  const stream = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [
+      {
+        role: "system",
+        content: `You are an expert educational assistant focused on providing high-quality answers.
+
+**Context:**
+      
+
+**Task:** Provide a comprehensive, well-formatted educational response.
+
+**Relevance Rules:**
+- Respond fully if the query relates to the topic, subtopics, or builds on previous conversation
+- If completely unrelated, provide a brief redirect message about the topic
+
+**Critical Formatting Requirements:**
+✅ **LaTeX Math - ALWAYS use delimiters:**
+- Inline: $E=mc^2$ or $\\text{H}_2\\text{O}$
+- Display: $$\\frac{d}{dx}(x^2) = 2x$$
+- Chemical: $\\text{CO}_2 + \\text{H}_2\\text{O} \\rightarrow \\text{H}_2\\text{CO}_3$
+
+❌ **Never output bare LaTeX without $ delimiters**
+
+**Response Quality:**
+- Use clear markdown formatting (headers, bold, lists)
+- Include concrete examples and analogies
+- Structure logically with good spacing
+- No control characters or encoding issues
+- Provide comprehensive explanations with examples when possible
+
+Focus only on providing the best possible educational response.`,
+      },
+      ...messages,
+    ],
+    stream: true,
+    temperature: 0.7,
+    max_tokens: 2000,
+  });
+
+  let fullResponse = "";
+
+  for await (const chunk of stream) {
+    const content = chunk.choices[0]?.delta?.content || "";
+    if (content) {
+      fullResponse += content;
+      // console.log(content);
+      // Send chunk to client
+      res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+    }
+    res.write("data: [DONE]\n\n");
+    res.end();
+  }
+
+  // Send answer complete signal
+  res.write(
+    `data: ${JSON.stringify({
+      type: "answer_complete",
+      fullAnswer: fullResponse,
+    })}\n\n`
+  );
+
+  return fullResponse;
+}
+
 async function generateCourseContents(userTopic) {
   try {
     const chatCompletion = await openai.chat.completions.create({
@@ -144,7 +214,7 @@ If the user input is vague, harmful, or unsuitable for a course:
     // // console.log(JSON.parse(chatCompletion.choices[0].message.content));
 
     const aiResponse = JSON.parse(chatCompletion.choices[0].message.content);
-    console.log(aiResponse);
+    // console.log(aiResponse);
 
     if (aiResponse.success) {
       return {
@@ -202,7 +272,7 @@ const getAllSubtopicNames = (topics) => {
       }
     }
   }
-  console.log(leafNames);
+  // console.log(leafNames);
   return leafNames;
 };
 
@@ -215,7 +285,7 @@ async function getFollowupPrompts(messages) {
   const lastAIResponse = messages
     .filter((m) => m.role === "assistant")
     .slice(-1)[0];
-
+  console.log(lastUserMessage);
   const completion = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
@@ -295,8 +365,9 @@ async function getFollowupPrompts(messages) {
         role: "user",
         content: `Based on our conversation above, generate the most logical and intuitive follow-up prompts. 
                   
-                  Current context:
-                  - Last question: "${lastUserMessage?.content || "N/A"}"
+                  - The repsonse you might generate for last question "${
+                    lastUserMessage?.content || "N/A"
+                  }"
                   - Key concepts discussed: [Extract from conversation]
                   - Learning level demonstrated: [Assess from user's questions]
                   
@@ -315,20 +386,17 @@ async function getFollowupPrompts(messages) {
     temperature: 0.7, // Slight creativity for varied prompts
   });
   const result = JSON.parse(completion.choices[0].message.content);
-  console.log(result);
+  // console.log(result);
 
   return result;
 }
 
 //user asks question-> take response from backend
 const getAnswerResponse = async (messages, topic, topics) => {
-  // console.log(subtopics);
-  console.log(topics);
   const topicsNames = topics.map((topic) => topic.name);
   const subtopics = topics.flatMap((topic) => topic.subtopics);
   const subtopicsNames = subtopics.map((subtopic) => subtopic.name);
   const allSubtopicsNames = getAllSubtopicNames(topics);
-  console.log(subtopicsNames);
 
   const completion = await openai.chat.completions.create({
     model: "gpt-4o-mini",
@@ -378,6 +446,8 @@ const getAnswerResponse = async (messages, topic, topics) => {
                   $$
                   \\text{Zn(s)} + 2\\text{HCl(aq)} \\rightarrow \\text{ZnCl}_2\\text{(aq)} + \\text{H}_2\\text{(g)}
                   $$
+                  
+                IMPORTANT: Always write dollar amounts as \\$10,000 (with double backslashes) instead of $10,000 to prevent math rendering conflicts
 
                 **Strictly follow these rules. Do not write raw LaTeX without enclosing it in dollar signs.**
 
@@ -437,56 +507,41 @@ app.post("/generate-course", async (req, res) => {
 });
 
 app.post("/chat", async (req, res) => {
-  // // console.log(req.body);
   console.log("gotcha");
   const messages = req.body.formattedMessages;
   const currentTopic = req.body.currentTopicName;
   const topics = req.body.topics;
+
   const result = await getAIResponse(messages, currentTopic, topics);
+
   if (result.success) {
+    // Initialize followup with the original result.followup
+    let followupToSend = result.followup;
+
+    // Check if the message contains the specific string
+    if (result.message?.message.includes("This is not related to the topic:")) {
+      // If it does, override followupToSend
+      followupToSend = { show: false, prompts: [] };
+    }
+
     res.status(200).json({
       success: true,
       message: result.message,
-      followup: result.followup,
+      followup: followupToSend, // Use the potentially modified followup
     });
   } else {
     res.status(500).json({ success: false, message: result.message });
   }
 });
 app.post("/generate-quiz", async (req, res) => {
-  // // console.log(req.body);
-
   const topicName = req.body.subtopicName;
   const messages = req.body.messages;
-  // // console.log("mama");
-
-  // // console.log(topicName, messages);
   const response = await generateQuiz(topicName, messages);
-
-  // const response = {
-  //   success: true,
-  //   data: [
-  //     {
-  //       id: "1",
-  //       question: "What is the capital of France?",
-  //       options: ["Paris", "London", "Berlin", "Madrid"],
-  //       correct: 0,
-  //     },
-  //     {
-  //       id: "2",
-  //       question: "What is the capital of Germany?",
-  //       options: ["Paris", "London", "Berlin", "Madrid"],
-  //       correct: 2,
-  //     },
-  //     {
-  //       id: "3",
-  //       question: "What is the capital of Italy?",
-  //       options: ["Paris", "London", "Berlin", "Madrid"],
-  //       correct: 3,
-  //     },
-  //   ],
-  // };
   res.status(200).json({ success: true, data: response });
+});
+app.post("/stream-response", async (req, res) => {
+  const messages = req.body.messages;
+  streamResponse(messages, res);
 });
 app.listen(port, () => {
   console.log(`Server listening at http://localhost:${port}`);
