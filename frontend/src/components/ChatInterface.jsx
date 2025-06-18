@@ -7,6 +7,7 @@ import "katex/dist/katex.min.css";
 import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
 import { useNavigate } from "react-router-dom";
+import { XSquare } from "lucide-react";
 import {
   Send,
   HelpCircle,
@@ -40,6 +41,11 @@ const ChatInterface = ({
   relatedTopics,
   setRelatedTopics,
   thinkingMessageActive,
+  handleStopThinking,
+  setStoppedThinking,
+  stoppedThinking,
+  errorMessage,
+  setErrorMessage,
 }) => {
   console.log("rendered");
 
@@ -60,7 +66,7 @@ const ChatInterface = ({
     // console.log(prompt[index]);
     onSendMessage(prompt);
   };
-
+  
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -383,17 +389,53 @@ const ChatInterface = ({
         {thinkingMessageActive && isThinking && (
           <div className="flex w-full justify-start">
             <div className="max-w-lg sm:max-w-lg md:max-w-md lg:max-w-lg xl:max-w-2xl pl-2 pt-2 pr-5 pb-4 rounded-lg shadow overflow-hidden bg-message-llm text-dark-gray border border-gray-100 rounded-bl-none">
-              {/* Added the logo and sender label */}
+              <div className="flex items-center mb-1">
+                <Bot size={16} className="mr-2 opacity-80" />
+                <span className="font-semibold text-xs opacity-80">Zlearn</span>
+              </div>
+
+              <div className="flex flex-row gap-2 items-center mt-2"> {/* Increased gap for better spacing */}
+                <Spinner />
+                <span>Thinking...</span>
+                {/* Simple text button */}
+                   <button
+                    onClick={()=>{
+                      handleStopThinking();
+                      setStoppedThinking(true);
+                    }}
+                    className="flex items-center gap-1 px-3 py-1 rounded-md border border-gray-300 bg-gray-50 text-gray-800 text-sm font-medium hover:bg-gray-100 transition-colors"
+                  >
+                    <XSquare size={14} className="opacity-80" /> {/* Stop icon */}
+                    Stop
+                  </button>
+
+              </div>
+            </div>
+          </div>
+        )}
+        {stoppedThinking && !isThinking && (
+          <div className="flex w-full justify-start">
+            <div className="max-w-lg sm:max-w-lg md:max-w-md lg:max-w-lg xl:max-w-2xl pl-2 pt-2 pr-5 pb-4 rounded-lg shadow overflow-hidden bg-message-llm text-dark-gray border border-gray-100 rounded-bl-none">
               <div className="flex items-center mb-1">
                 <Bot size={16} className="mr-2 opacity-80" />{" "}
                 {/* Bot icon for Zlearn */}
                 <span className="font-semibold text-xs opacity-80">Zlearn</span>
               </div>
-              {/* End of added logo and sender label */}
-
               <div className="flex flex-row gap-1 items-center mt-2">
-                <Spinner /> {/* Your spinner component */}
-                <span>Thinking...</span>
+                <span>Thinking stopped.</span>
+              </div>
+            </div>
+          </div>
+        )}
+        {errorMessage && !isThinking && !stoppedThinking &&(
+          <div className="flex w-full justify-start">
+            <div className="max-w-lg sm:max-w-lg md:max-w-md lg:max-w-lg xl:max-w-2xl pl-2 pt-2 pr-5 pb-4 rounded-lg shadow overflow-hidden bg-message-llm text-dark-gray border border-gray-100 rounded-bl-none">
+              <div className="flex items-center mb-1">
+                <Bot size={16} className="mr-2 opacity-80" />
+                <span className="font-semibold text-xs opacity-80">Zlearn</span>
+              </div>
+              <div className="flex flex-row gap-1 items-center mt-2">
+                <span>{errorMessage}</span>
               </div>
             </div>
           </div>

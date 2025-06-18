@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect,useRef } from "react";
 import Sidebar from "./Sidebar";
 import ChatInterface from "./ChatInterface";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -6,7 +6,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 function Learn() {
   const navigate = useNavigate();
   const location = useLocation();
-
+  const abortControllerRef = useRef(null);
   // Core state for the entire component
   const [currentTopicName, setCurrentTopicName] = useState(null);
   const [topics, setTopics] = useState([]);
@@ -20,6 +20,7 @@ function Learn() {
   const [currentTopicId, setCurrentTopicId] = useState(null);
   const [currentStream, setCurrentStream] = useState("");
   const [thinkingMessageActive, setThinkingMessageActive] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
 
   // UI State
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -28,7 +29,7 @@ function Learn() {
   const [scrollToMessageId, setScrollToMessageId] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [relatedTopicsByThread, setRelatedTopicsByThread] = useState({});
-
+  const [stoppedThinking, setStoppedThinking] = useState(false);
   // Load course data on mount or location change
   useEffect(() => {
     const newCourseData = location.state?.data; // From TopicInput
@@ -170,9 +171,17 @@ function Learn() {
       );
     }, 0);
   };
+
+  const handleStopThinking = () => {
+    console.log("stop thinking");
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+  };
   const streamLLMResponse = async (formattedMessages) => {
     setCurrentStream("");
     console.log("got it");
+    
 
     const response = await fetch(
       `${import.meta.env.VITE_BACKEND_URL}/stream-response`,
@@ -218,6 +227,8 @@ function Learn() {
     // await new Promise(resolve => setTimeout(resolve, 2000));
     // setCurrentStream("");
     // await streamLLMResponse(formattedMessages);
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal; 
     try {
       const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/chat`, {
         method: "POST",
@@ -229,6 +240,7 @@ function Learn() {
           currentTopicName, // extra field
           topics,
         }),
+        signal,
       });
 
       const result = await response.json();
@@ -240,11 +252,13 @@ function Learn() {
         throw new Error(result.message || "Failed to get response");
       }
     } catch (error) {
-      console.error("Error in LLM call:", error);
+      // console.error("Error in LLM call:", error);
       throw error; // Re-throw to be caught by calling function
     }
   };
   const handleSubtopicSelect = async (topicId, subtopicId, subtopicName) => {
+    setStoppedThinking(false);
+    setErrorMessage("");
     if (completedSubtopics.has(subtopicId)) {
       if (window.innerWidth < 768) {
         toggleSidebar();
@@ -323,18 +337,8 @@ function Learn() {
       }));
       setCompletedSubtopics((prev) => new Set(prev).add(subtopicId));
     } catch (error) {
-      console.error("Subtopic select LLM API error:", error);
-      const errorMessage = {
-        ...thinkingMessage,
-        thinking: false,
-        text: "Sorry, I couldn't process that. Please try again.",
-      };
-      setChatThreads((prevThreads) => ({
-        ...prevThreads,
-        [topicId]: prevThreads[topicId].map((msg) =>
-          msg.id === thinkingMessage.id ? errorMessage : msg
-        ),
-      }));
+      // console.error("Subtopic select LLM API error:", error);
+      setErrorMessage("Sorry, an error occurred. Please try again.");
     } finally {
       setIsThinking(false);
       setThinkingMessageActive(false);
@@ -342,8 +346,10 @@ function Learn() {
   };
 
   const handleSendMessage = async (messageText, quickAction = null) => {
+    setStoppedThinking(false);
     setIsThinking(true);
     setThinkingMessageActive(true);
+    setErrorMessage("");
     const { topicId, subtopicName } = currentChat;
     setRelatedTopicsByThread((prev) => ({ ...prev, [topicId]: [] }));
 
@@ -428,18 +434,8 @@ function Learn() {
         [topicId]: [...prevThreads[topicId], llmResponseMessage],
       }));
     } catch (error) {
-      console.error("LLM API error:", error);
-      const errorMessage = {
-        ...thinkingMessage,
-        thinking: false,
-        text: "Sorry, an error occurred. Please try again.",
-      };
-      setChatThreads((prevThreads) => ({
-        ...prevThreads,
-        [topicId]: prevThreads[topicId].map((msg) =>
-          msg.id === thinkingMessage.id ? errorMessage : msg
-        ),
-      }));
+      // console.error("LLM API error:", error);
+      setErrorMessage("Sorry, an error occurred. Please try again.");
     } finally {
       setIsThinking(false);
       setThinkingMessageActive(false);
@@ -449,7 +445,8 @@ function Learn() {
   const handleRegenerate = async () => {
     setIsGenerating(true);
     setIsThinking(true);
-
+    setStoppedThinking(false);
+    setErrorMessage("");
     // Clear progress for the current course
     setCompletedSubtopics(new Set());
     setChatThreads({});
@@ -490,7 +487,7 @@ function Learn() {
       // After regeneration, chatThreads is reset, so we set the initial message.
       setChatThreads({ [null]: [successMessage] });
     } catch (error) {
-      console.error("Error generating subtopics:", error);
+      // console.error("Error generating subtopics:", error);
       const errorMessage = {
         id: thinkingMessage.id,
         sender: "llm",
@@ -554,6 +551,11 @@ function Learn() {
           setScrollToMessageId={setScrollToMessageId}
           relatedTopics={relatedTopicsByThread[currentChat.topicId] || []}
           thinkingMessageActive={thinkingMessageActive}
+          handleStopThinking={handleStopThinking}
+          setStoppedThinking={setStoppedThinking}
+          stoppedThinking={stoppedThinking}
+          errorMessage={errorMessage}
+          setErrorMessage={setErrorMessage}
         />
       </div>
     </div>
