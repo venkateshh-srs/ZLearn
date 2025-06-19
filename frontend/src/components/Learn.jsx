@@ -33,8 +33,9 @@ function Learn() {
   // Load course data on mount or location change
   useEffect(() => {
     const newCourseData = location.state?.data; // From TopicInput
+    //console.log(newCourseData);
     const topicIdToContinue = location.state?.topicId; // From ChatHistory
-
+    //console.log(topicIdToContinue);
     const lastActiveTopicId = localStorage.getItem("lastActiveTopicId");
 
     let topicToLoad = null;
@@ -43,25 +44,25 @@ function Learn() {
       topicToLoad = newCourseData.id;
       const allCourses =
         JSON.parse(localStorage.getItem("learningJourneyHistory")) || {};
-      console.log(allCourses);
+      // //console.log(allCourses);
       const course = {
         id: newCourseData.id,
         title: newCourseData.title,
         topics: newCourseData.data,
-        chatThreads: {},
+        chatThreads: {1:[{id:1,sender:"llm",text:newCourseData.introduction,thinking:false}]},
         relatedTopicsByThread: {},
         completedSubtopics: [],
-        currentChat: { topicId: null, subtopicId: null, subtopicName: "" },
+        currentChat: { topicId: 1, subtopicId: null, subtopicName: "" },
         lastAccessed: new Date().toISOString(),
       };
-      // console.log(course);
+      // //console.log(course);
       allCourses[topicToLoad] = course;
       localStorage.setItem(
         "learningJourneyHistory",
         JSON.stringify(allCourses)
       );
       localStorage.setItem("lastActiveTopicId", topicToLoad);
-      console.log(localStorage.getItem("lastActiveTopicId"));
+      // //console.log(localStorage.getItem("lastActiveTopicId"));
       // Clean up location state
       navigate(location.pathname, {
         replace: true,
@@ -87,7 +88,7 @@ function Learn() {
         setRelatedTopicsByThread(data.relatedTopicsByThread || {});
         setCurrentChat(
           data.currentChat || {
-            topicId: null,
+            topicId: 1,
             subtopicId: null,
             subtopicName: "",
           }
@@ -128,7 +129,7 @@ function Learn() {
 
     allCourses[currentTopicId] = courseData;
     localStorage.setItem("learningJourneyHistory", JSON.stringify(allCourses));
-    console.log(JSON.parse(localStorage.getItem("learningJourneyHistory")));
+    // //console.log(JSON.parse(localStorage.getItem("learningJourneyHistory")));
   }, [
     currentTopicName,
     topics,
@@ -173,14 +174,14 @@ function Learn() {
   };
 
   const handleStopThinking = () => {
-    console.log("stop thinking");
+    //console.log("stop thinking");
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
   };
   const streamLLMResponse = async (formattedMessages) => {
     setCurrentStream("");
-    console.log("got it");
+    //console.log("got it");
     
 
     const response = await fetch(
@@ -206,7 +207,7 @@ function Learn() {
         .split("\n")
         .filter((line) => line.startsWith("data: "));
       for (const line of lines) {
-        console.log(line);
+        // //console.log(line);
 
         const json = line.replace(/^data: /, "");
         if (json === "[DONE]") break;
@@ -215,7 +216,7 @@ function Learn() {
           const parsed = JSON.parse(json);
           const token = parsed.choices?.[0]?.delta?.content || "";
           setCurrentStream((prev) => prev + token);
-          console.log(currentStream);
+          //console.log(currentStream);
         } catch (err) {
           console.error("Error parsing chunk", err);
         }
@@ -244,7 +245,7 @@ function Learn() {
       });
 
       const result = await response.json();
-      console.log(result);
+      //console.log(result);
 
       if (result.success) {
         return result;
@@ -270,7 +271,7 @@ function Learn() {
       const messageToScrollTo = chatHistory.find(
         (m) => m.text === userMessageText && m.sender === "user"
       );
-      // console.log(messageToScrollTo);
+      // //console.log(messageToScrollTo);
 
       if (messageToScrollTo) {
         setScrollToMessageId(messageToScrollTo.id);
@@ -342,6 +343,7 @@ function Learn() {
     } finally {
       setIsThinking(false);
       setThinkingMessageActive(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -409,7 +411,7 @@ function Learn() {
 
     try {
       const llmReply = await getLLMResponse(formattedMessages);
-      console.log(llmReply);
+      // //console.log(llmReply);
 
       const llmResponseMessage = {
         id: Date.now() + 2,
@@ -423,11 +425,11 @@ function Learn() {
         //   ...prev,
         //   [topicId]: llmReply.followup.prompts,
         // }));
-        console.log(llmReply.followup.prompts);
+        // //console.log(llmReply.followup.prompts);
 
         llmResponseMessage.prompts = llmReply.followup.prompts;
       }
-      console.log(llmResponseMessage);
+      // //console.log(llmResponseMessage);
 
       setChatThreads((prevThreads) => ({
         ...prevThreads,
@@ -436,9 +438,11 @@ function Learn() {
     } catch (error) {
       // console.error("LLM API error:", error);
       setErrorMessage("Sorry, an error occurred. Please try again.");
+      setStoppedThinking(true);
     } finally {
       setIsThinking(false);
       setThinkingMessageActive(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -450,19 +454,10 @@ function Learn() {
     // Clear progress for the current course
     setCompletedSubtopics(new Set());
     setChatThreads({});
-    setCurrentChat({ topicId: null, subtopicId: null, subtopicName: "" });
+    setCurrentChat({ topicId: 1, subtopicId: null, subtopicName: "" });
     setRelatedTopicsByThread({});
-
-    const thinkingMessage = {
-      id: Date.now(),
-      sender: "llm",
-      text: "Generating new subtopics...",
-      thinking: true,
-    };
-
-    // Temporarily update chatThreads for UI
-    setChatThreads({ [null]: [thinkingMessage] });
-
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal; 
     try {
       const res = await fetch(
         `${import.meta.env.VITE_BACKEND_URL}/generate-course`,
@@ -470,22 +465,23 @@ function Learn() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ topic: currentTopicName }),
+          signal,
         }
       );
       const result = await res.json();
       if (!result.success || !result.data || !result.data.data) {
         throw new Error(result.message || "Failed to generate subtopics.");
       }
-
+      //console.log(result);
       setTopics(result.data.data); // This will trigger the save useEffect
       const successMessage = {
         id: Date.now() + 1,
         sender: "llm",
-        text: `I've regenerated the subtopics for **${currentTopicName}**. What would you like to learn first? please select a subtopic from the sidebar`,
+        text: `${result.data.introduction} What would you like to learn first? please select a subtopic from the sidebar to begin`,
         thinking: false,
       };
       // After regeneration, chatThreads is reset, so we set the initial message.
-      setChatThreads({ [null]: [successMessage] });
+      setChatThreads({ 1:[{id:1,sender:"llm",text:result.data.introduction,thinking:false}] });
     } catch (error) {
       // console.error("Error generating subtopics:", error);
       const errorMessage = {
@@ -495,9 +491,11 @@ function Learn() {
         thinking: false,
       };
       setChatThreads({ [null]: [errorMessage] });
+      setStoppedThinking(true);
     } finally {
       setIsGenerating(false);
       setIsThinking(false);
+      abortControllerRef.current = null;
     }
   };
 

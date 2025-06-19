@@ -16,7 +16,7 @@ const TextSelectionMenu = ({
 
   useEffect(() => {
     const handleSelection = () => {
-      // console.log(isQuizActive);
+      // //console.log(isQuizActive);
 
       const selection = window.getSelection();
       const text = selection?.toString().trim();
@@ -93,9 +93,9 @@ const TextSelectionMenu = ({
   }, [chatContainerRef]);
 
   const handleAction = (action) => {
-    console.log(selectedText);
+    //console.log(selectedText);
     const selectedTextt = JSON.stringify(selectedText);
-    console.log(selectedTextt);
+    //console.log(selectedTextt);
 
     onAction(action, selectedTextt);
     setShowMenu(false);

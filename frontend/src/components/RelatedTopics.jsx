@@ -13,7 +13,7 @@ function RelatedTopics({ relatedTopics, handleRelatedTopicClick }) {
             <button
               key={index}
               onClick={() => {
-                console.log("Prompt clicked:", prompt); // Add this line
+                //console.log("Prompt clicked:", prompt); // Add this line
                 handleRelatedTopicClick(prompt);
               }}
               className="flex w-full items-center gap-2 rounded-md bg-gray-50 p-3 text-left hover:cursor-pointer hover:bg-blue-50"

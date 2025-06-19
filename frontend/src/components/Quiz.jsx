@@ -90,7 +90,7 @@ const Quiz = ({ subtopicName, onClose, messages, isQuizActive }) => {
           content: msg.text,
         }));
         const response = await generateQuiz(subtopicName, formattedMessages);
-        // console.log(response.data);
+        // //console.log(response.data);
         const newQuestions = response.data.data.questions;
         setQuestions(newQuestions);
 
@@ -134,7 +134,7 @@ const Quiz = ({ subtopicName, onClose, messages, isQuizActive }) => {
     }
   };
   const generateQuiz = async (subtopicName, messages) => {
-    // console.log(subtopicName, messages);
+    // //console.log(subtopicName, messages);
 
     const response = await fetch(
       `${import.meta.env.VITE_BACKEND_URL}/generate-quiz`,
@@ -147,7 +147,7 @@ const Quiz = ({ subtopicName, onClose, messages, isQuizActive }) => {
       }
     );
 
-    // console.log(response);
+    // //console.log(response);
 
     return response.json();
   };
@@ -159,7 +159,7 @@ const Quiz = ({ subtopicName, onClose, messages, isQuizActive }) => {
     setUserSelections({}); // Reset user selections
   };
   function replaceLatexInline(text) {
-    console.log(text);
+    //console.log(text);
     if (!text) return "";
     text = text.replace(/\$\$\s*([\s\S]*?)\s*\$\$/g, (_, inner) => {
       const cleaned = inner.replace(/\n+/g, " ").trim();

@@ -29,11 +29,11 @@ export default function TopicInput({ input, setInput, isGenerating, setIsGenerat
       );
 
       const result = await res.json();
-      // console.log(result);
+      // //console.log(result);
 
       if (result.success) {
         // Optionally store in localStorage to survive refresh
-        // console.log(result.data);
+        // //console.log(result.data);
         result.data.id = uuidv4();
         navigate("/learn", {
           state: {
@@ -45,15 +45,15 @@ export default function TopicInput({ input, setInput, isGenerating, setIsGenerat
         // setError(
         //   result.message || "Could not generate content for this topic."
         // );
-        // console.log(result.message);
+        // //console.log(result.message);
         setError(result.message);
 
-        // console.log("Some error");
+        // //console.log("Some error");
       }
     } catch (err) {
       console.error("Failed to generate outline:", err);
       setError("An unexpected error occurred. Please try again later.");
-      // console.log("Some error");
+      // //console.log("Some error");
 
       // setError("An unexpected error occurred. Please try again later.");
     } finally {

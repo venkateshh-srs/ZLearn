@@ -15,7 +15,7 @@ const CourseItem = ({ course, onContinue, index, setHistory }) => {
   } = course;
   const courseId = course.id;
   const handleRemoveTopic = (courseId) => {
-    console.log(courseId);
+    //console.log(courseId);
     const allCourses =
       JSON.parse(localStorage.getItem("learningJourneyHistory")) || {};
     delete allCourses[courseId];
@@ -25,7 +25,7 @@ const CourseItem = ({ course, onContinue, index, setHistory }) => {
     const sortedHistory = Object.values(storedHistory).sort(
       (a, b) => new Date(b.lastAccessed) - new Date(a.lastAccessed)
     );
-    console.log(sortedHistory);
+    //console.log(sortedHistory);
     setHistory(sortedHistory);
   };
 
@@ -37,7 +37,7 @@ const CourseItem = ({ course, onContinue, index, setHistory }) => {
     minute: "2-digit",
     hour12: true,
   }).format(new Date(lastAccessed))}`;
-  //   console.log(formattedDate);
+  //   //console.log(formattedDate);
 
   const completedSubtopicsLength = completedSubtopics?.length || 0;
 
@@ -54,7 +54,7 @@ const CourseItem = ({ course, onContinue, index, setHistory }) => {
     );
   }, 0);
 
-  //   console.log(totalSubtopicsCompleted);
+  //   //console.log(totalSubtopicsCompleted);
   const totalMessages = Object.values(chatThreads || {}).flat().length;
   const remainingTopics = totalSubtopics - completedSubtopicsLength;
 
@@ -105,7 +105,7 @@ const CourseItem = ({ course, onContinue, index, setHistory }) => {
 };
 
 const RecentCourseItem = ({ course, onContinue }) => {
-  console.log(course);
+  //console.log(course);
   const { title, lastAccessed, progress } = course;
   const formattedDate = new Intl.DateTimeFormat("en-US", {
     month: "short",
@@ -165,7 +165,7 @@ function ChatHistory({ isGenerating }) {
     const sortedHistory = Object.values(storedHistory).sort(
       (a, b) => new Date(b.lastAccessed) - new Date(a.lastAccessed)
     );
-    console.log(sortedHistory);
+    //console.log(sortedHistory);
 
     setHistory(sortedHistory);
     // setFilteredHistory(sortedHistory);
@@ -176,13 +176,13 @@ function ChatHistory({ isGenerating }) {
     );
     setFilteredHistory(filtered);
   }, [search, history]);
-  //   console.log(filteredHistory);
+  //   //console.log(filteredHistory);
 
   const handleContinue = (topicId) => {
     if (isGenerating) {
       return;
     }
-    console.log(topicId);
+    //console.log(topicId);
     navigate("/learn", { state: { topicId } });
   };
 
@@ -193,7 +193,7 @@ function ChatHistory({ isGenerating }) {
     }
     const storedHistory =
       JSON.parse(localStorage.getItem("learningJourneyHistory")) || {};
-    console.log(storedHistory);
+    //console.log(storedHistory);
     const sortedHistory = Object.values(storedHistory).sort(
       (a, b) => new Date(b.lastAccessed) - new Date(a.lastAccessed)
     );

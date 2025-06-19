@@ -46,8 +46,9 @@ const ChatInterface = ({
   stoppedThinking,
   errorMessage,
   setErrorMessage,
+  introduction,
 }) => {
-  console.log("rendered");
+  //console.log("rendered");
 
   const [inputValue, setInputValue] = useState("");
   const messagesEndRef = useRef(null);
@@ -62,8 +63,8 @@ const ChatInterface = ({
   );
 
   const handleRelatedTopicClick = (prompt) => {
-    console.log(prompt);
-    // console.log(prompt[index]);
+    //console.log(prompt);
+    // //console.log(prompt[index]);
     onSendMessage(prompt);
   };
   
@@ -71,7 +72,7 @@ const ChatInterface = ({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  useEffect(scrollToBottom, [messages, isQuizActive]);
+  // useEffect(scrollToBottom, [messages, isQuizActive]);
 
   useEffect(() => {
     if (scrollToMessageId && messageRefs.current[scrollToMessageId]) {
@@ -98,7 +99,7 @@ const ChatInterface = ({
 
   // Handler for actions from the text selection menu
   const handleTextSelectionAction = (action, selectedText) => {
-    // console.log(isQuizActive);
+    // //console.log(isQuizActive);
     if (isQuizActive) {
       return;
     }
@@ -128,8 +129,7 @@ const ChatInterface = ({
       return (
         <div className="p-4 my-4 bg-blue-50 border border-blue-300 rounded-lg text-center text-l">
           <p className="text-sky-800">
-            Welcome! Your personalized learning path is ready. Choose any
-            subtopic from the sidebar to kickstart your journey!
+            {introduction}
           </p>
         </div>
       );
@@ -186,8 +186,8 @@ const ChatInterface = ({
   return (
     <div className="flex flex-col h-full max-h-full overflow-hidden bg-white z-1">
       {/* Add the TextSelectionMenu component here */}
-      {/* {console.log(topics, currentChat)} */}
-      {/* {console.log(currentChat)} */}
+      {/* {//console.log(topics, currentChat)} */}
+      {/* {//console.log(currentChat)} */}
       <TextSelectionMenu
         onAction={handleTextSelectionAction}
         chatContainerRef={chatContainerRef}
@@ -233,7 +233,7 @@ const ChatInterface = ({
         ref={chatContainerRef}
         className="flex-1 overflow-y-auto min-h-0 space-y-4 p-4 md:p-8 sm:p-10 mb-4 pr-2 relative bg-chat"
       >
-        {getInitialLLMMessage()}
+
         {messages.map((msg) => (
           <div
             key={msg.id}
@@ -388,7 +388,7 @@ const ChatInterface = ({
         {/* --- Standalone Thinking Message --- */}
         {thinkingMessageActive && isThinking && (
           <div className="flex w-full justify-start">
-            <div className="max-w-lg sm:max-w-lg md:max-w-md lg:max-w-lg xl:max-w-2xl pl-2 pt-2 pr-5 pb-4 rounded-lg shadow overflow-hidden bg-message-llm text-dark-gray border border-gray-100 rounded-bl-none">
+            <div className="max-w-lg pl-2 pt-2 pr-5 pb-4 rounded-lg shadow overflow-hidden bg-message-llm text-dark-gray border border-gray-100 rounded-bl-none">
               <div className="flex items-center mb-1">
                 <Bot size={16} className="mr-2 opacity-80" />
                 <span className="font-semibold text-xs opacity-80">Zlearn</span>
@@ -415,21 +415,21 @@ const ChatInterface = ({
         )}
         {stoppedThinking && !isThinking && (
           <div className="flex w-full justify-start">
-            <div className="max-w-lg sm:max-w-lg md:max-w-md lg:max-w-lg xl:max-w-2xl pl-2 pt-2 pr-5 pb-4 rounded-lg shadow overflow-hidden bg-message-llm text-dark-gray border border-gray-100 rounded-bl-none">
+            <div className="max-w-lg pl-2 pt-2 pr-5 pb-4 rounded-lg shadow overflow-hidden bg-message-llm text-dark-gray border border-gray-100 rounded-bl-none">
               <div className="flex items-center mb-1">
                 <Bot size={16} className="mr-2 opacity-80" />{" "}
                 {/* Bot icon for Zlearn */}
                 <span className="font-semibold text-xs opacity-80">Zlearn</span>
               </div>
               <div className="flex flex-row gap-1 items-center mt-2">
-                <span>Thinking stopped.</span>
+                <span>Stopped thinking.</span>
               </div>
             </div>
           </div>
         )}
         {errorMessage && !isThinking && !stoppedThinking &&(
           <div className="flex w-full justify-start">
-            <div className="max-w-lg sm:max-w-lg md:max-w-md lg:max-w-lg xl:max-w-2xl pl-2 pt-2 pr-5 pb-4 rounded-lg shadow overflow-hidden bg-message-llm text-dark-gray border border-gray-100 rounded-bl-none">
+            <div className="max-w-lg pl-2 pt-2 pr-5 pb-4 rounded-lg shadow overflow-hidden bg-message-llm text-dark-gray border border-gray-100 rounded-bl-none">
               <div className="flex items-center mb-1">
                 <Bot size={16} className="mr-2 opacity-80" />
                 <span className="font-semibold text-xs opacity-80">Zlearn</span>

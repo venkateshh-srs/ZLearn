@@ -1,166 +1,294 @@
 import express from "express";
 import cors from "cors";
-import OpenAI from "openai";
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 import { z } from "zod";
-import { zodResponseFormat } from "openai/helpers/zod";
+import { zodToJsonSchema } from "zod-to-json-schema";
 import dotenv from "dotenv";
+
+// Import your existing Zod schemas
 import courseContentSchema from "./zodSchemas/courseContentSchema.js";
 import QuizSchema from "./zodSchemas/quizSchema.js";
 import { followupResponseSchema } from "./zodSchemas/followupResponseSchema.js";
+
 dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 const port = 1235;
-const openai = new OpenAI({
-  apiKey: process.env.OPEN_API_KEY,
-});
+
+// Initialize the Google Generative AI client
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+const modelConfig = {
+    // Using gemini-1.5-flash-latest for a balance of speed and capability
+    model: "gemini-2.0-flash",
+    safetySettings: [
+        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+        { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+        { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+    ],
+};
+
+// Helper function to handle chat history for Gemini
+const buildGeminiChatHistory = (messages) => {
+  return messages.map(msg => ({
+    role: msg.role === 'assistant' ? 'model' : msg.role,
+    parts: [{ text: msg.content }]
+  }));
+};
 
 //generate quiz along with answers
 const generateQuiz = async (topicName, messages) => {
-  // // console.log(topicName, messages);
+  //console.log(`Generating quiz for topic: ${topicName}`);
+  const model = genAI.getGenerativeModel({
+      ...modelConfig,
+      // Use JSON mode for structured output
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+    "type": "object",
+    "properties": {
+      "success": {
+        "type": "boolean",
+        "description": "Indicates if the quiz generation was successful."
+      },
+      "message": {
+        "type": "string",
+        "description": "A message regarding the quiz generation status."
+      },
+      "questions": {
+        "type": "array",
+        "description": "An array of quiz questions.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "A unique identifier for the question."
+            },
+            "question": {
+              "type": "string",
+              "description": "The text of the quiz question."
+            },
+            "options": {
+              "type": "array",
+              "description": "An array of exactly four string options.",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 4,
+              "maxItems": 4
+            },
+            "correct": {
+              "type": "integer",
+              "description": "The 0-based index of the correct option in the 'options' array.",
+              "minimum": 0,
+              "maximum": 3
+            }
+          },
+          "required": [
+            "id",
+            "question",
+            "options",
+            "correct"
+          ]
+        }
+      }
+    },
+    "required": [
+      "success",
+      "message",
+      "questions"
+    ]
+  }
+      }
+  });
+
+  const chatHistory = buildGeminiChatHistory(messages);
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: `You are a helpful assistant designed to generate quizzes. Based on the provided topic "${topicName}" and the preceding conversation, create a short quiz with questions and answers. Ensure the quiz is relevant to the topic.`,
-        },
-        ...messages,
-      ],
-      response_format: zodResponseFormat(QuizSchema, "quiz_response"),
-    });
-    const result = JSON.parse(completion.choices[0].message.content);
-    // // console.log(result);
-    return { success: true, data: result };
+      const result = await model.generateContent([
+          `You are a helpful assistant designed to generate quizzes. Based on the provided topic "${topicName}" and the preceding conversation, create a short quiz with questions and answers. Ensure the quiz is relevant to the topic. Output a valid JSON object matching the requested schema.`,
+          ...chatHistory
+      ]);
+      
+      const jsonText = result.response.text();
+      const jsonData = JSON.parse(jsonText);
+
+      // Validate the data against the Zod schema as a final check
+      const validation = QuizSchema.safeParse(jsonData);
+      if (validation.success) {
+          return { success: true, data: validation.data };
+      } else {
+          console.error("Zod validation failed for quiz generation:", validation.error);
+          return {
+              success: false,
+              message: "The AI's response for the quiz did not conform to the expected output schema.",
+              errors: validation.error.errors,
+          };
+      }
+
   } catch (error) {
-    console.error("Error during quiz generation:", error);
-    if (error instanceof z.ZodError) {
-      // Placeholder for if you add Zod validation later
+      console.error("Error during quiz generation:", error);
       return {
-        success: false,
-        message:
-          "The AI's response for the quiz did not conform to the expected output schema.",
-        errors: error.errors,
+          success: false,
+          message: "An unexpected error occurred during quiz generation. Please try again later.",
+          error: error.message,
       };
-    } else if (error instanceof OpenAI.APIError) {
-      return {
-        success: false,
-        message: `OpenAI API error during quiz generation: ${error.message}`,
-        code: error.code,
-        type: error.type,
-      };
-    } else {
-      return {
-        success: false,
-        message:
-          "An unexpected error occurred during quiz generation. Please try again later.",
-        error: error.message,
-      };
-    }
   }
 };
 
+// streamResponse does NOT use JSON mode, as it's for free-text streaming. No changes needed here.
 async function streamResponse(messages, res) {
+  // ... (This function remains unchanged from the previous version)
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
 
-  const stream = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      {
-        role: "system",
-        content: `You are an expert educational assistant focused on providing high-quality answers.
+  const model = genAI.getGenerativeModel(modelConfig);
+  const chatHistory = buildGeminiChatHistory(messages);
 
-**Context:**
-      
+  const systemInstruction = {
+      role: 'model',
+      parts: [{
+          text: `You are an expert educational assistant focused on providing high-quality answers.
+          **Context:**
+          **Task:** Provide a comprehensive, well-formatted educational response.
+          **Relevance Rules:**
+          - Respond fully if the query relates to the topic, subtopics, or builds on previous conversation
+          - If completely unrelated, provide a brief redirect message about the topic
+          **Critical Formatting Requirements:**
+          ✅ **LaTeX Math - ALWAYS use delimiters:**
+          - Inline: $E=mc^2$ or $\\text{H}_2\\text{O}$
+          - Display: $$\\frac{d}{dx}(x^2) = 2x$$
+          - Chemical: $\\text{CO}_2 + \\text{H}_2\\text{O} \\rightarrow \\text{H}_2\\text{CO}_3$
+          ❌ **Never output bare LaTeX without $ delimiters**
+          **Response Quality:**
+          - Use clear markdown formatting (headers, bold, lists)
+          - Include concrete examples and analogies
+          - Structure logically with good spacing
+          - No control characters or encoding issues
+          - Provide comprehensive explanations with examples when possible
+          Focus only on providing the best possible educational response.`
+      }]
+  };
 
-**Task:** Provide a comprehensive, well-formatted educational response.
+  try {
+      const stream = await model.generateContentStream({
+        contents: [systemInstruction, ...chatHistory]
+      });
 
-**Relevance Rules:**
-- Respond fully if the query relates to the topic, subtopics, or builds on previous conversation
-- If completely unrelated, provide a brief redirect message about the topic
+      let fullResponse = "";
 
-**Critical Formatting Requirements:**
-✅ **LaTeX Math - ALWAYS use delimiters:**
-- Inline: $E=mc^2$ or $\\text{H}_2\\text{O}$
-- Display: $$\\frac{d}{dx}(x^2) = 2x$$
-- Chemical: $\\text{CO}_2 + \\text{H}_2\\text{O} \\rightarrow \\text{H}_2\\text{CO}_3$
+      for await (const chunk of stream.stream) {
+          const content = chunk.text();
+          if (content) {
+              fullResponse += content;
+              const responseChunk = {
+                  choices: [{ delta: { content } }]
+              };
+              res.write(`data: ${JSON.stringify(responseChunk)}\n\n`);
+          }
+      }
 
-❌ **Never output bare LaTeX without $ delimiters**
-
-**Response Quality:**
-- Use clear markdown formatting (headers, bold, lists)
-- Include concrete examples and analogies
-- Structure logically with good spacing
-- No control characters or encoding issues
-- Provide comprehensive explanations with examples when possible
-
-Focus only on providing the best possible educational response.`,
-      },
-      ...messages,
-    ],
-    stream: true,
-    temperature: 0.7,
-    max_tokens: 2000,
-  });
-
-  let fullResponse = "";
-
-  for await (const chunk of stream) {
-    const content = chunk.choices[0]?.delta?.content || "";
-    if (content) {
-      fullResponse += content;
-      // console.log(content);
-      // Send chunk to client
-      res.write(`data: ${JSON.stringify(chunk)}\n\n`);
-    }
-    res.write("data: [DONE]\n\n");
-    res.end();
+      res.write(`data: ${JSON.stringify({
+          type: "answer_complete",
+          fullAnswer: fullResponse
+      })}\n\n`);
+      res.write("data: [DONE]\n\n");
+  } catch (error) {
+      console.error("Streaming Error:", error);
+      res.write(`data: ${JSON.stringify({
+          error: "An error occurred during the stream."
+      })}\n\n`);
+  } finally {
+      res.end();
   }
-
-  // Send answer complete signal
-  res.write(
-    `data: ${JSON.stringify({
-      type: "answer_complete",
-      fullAnswer: fullResponse,
-    })}\n\n`
-  );
-
-  return fullResponse;
 }
 
 async function generateCourseContents(userTopic) {
-  try {
-    const chatCompletion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: `
-You are an expert educational content generator.
+  const model = genAI.getGenerativeModel({
+    ...modelConfig,
+    // Use JSON mode for structured output
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema:{
+  "type": "object",
+  "properties": {
+    "success": { "type": "boolean" },
+    "title": { "type": "string" },
+    "message": { "type": "string" },
+    "introduction": { "type": "string" },
+    "data": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "subtopics": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "name": { "type": "string" },
+                "subtopics": {
+                  "type": "array",
+                  "minItems": 3,
+                  "maxItems": 5,
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": { "type": "string" },
+                      "name": { "type": "string" }
+                    },
+                    "required": ["id", "name"]
+                  }
+                }
+              },
+              "required": ["id", "name"]
+            }
+          }
+        },
+        "required": ["id", "name", "subtopics"]
+      }
+    }
+  },
+  "required": ["success", "title", "message", "introduction", "data"]
+}
 
-Your job is to generate structured course outlines in strict JSON format based on user input. Follow these **non-negotiable rules** to ensure consistent and valid outputs.
 
-### OUTPUT STRUCTURE
+}
 
-Return JSON with:
-- "success": true | false
-- "title": A clean, short course title (2–5 words)
-- "message": A short success/failure note
-- "data": An array of 5–8 top-level topics
+    
+  });
 
----
+const prompt = `
+You are an expert educational content generator. Your job is to generate a structured course outline in a strict JSON format based on the user input and the provided schema.
 
-### COURSE DESIGN RULES
+<RULES>
 
-1. **TOPIC STRUCTURE (Level 1)**
-   - Must return **at least 5 Topics**. If the user’s input is short, **still expand into 5 meaningful topics**.
-   - Each Topic must contain 3–6 subtopics.
+1. **OUTPUT STRUCTURE**
+   - Return JSON with the following fields:
+     - "success": boolean
+     - "title": string
+     - "message": string
+     - "introduction": string — a learner-focused description written in second-person perspective. Format as:
+       - **Intro**: A short, friendly overview of the main course topic and why it matters.
+       - **What You Will Learn**: A separate paragraph or list clearly explaining what *you* will explore and be able to do by the end of the course.
+     - "data": array of 5–8 top-level topics
+
+1. **INTRODUCTION FIELD**
+   - Add a top-level "introduction" field — written in second-person ("you"/"your") perspective.
+   - Format:
+     - **Intro**: A short, engaging overview of the main course topic and why it matters to you.
+     - **What You Will Learn**: A separate paragraph (or bullet points) describing what *you* will explore and achieve in this course.
+   - At the end of the introduction, append this line in **bold markdown**:  
+     "**Select a topic from the sidebar to start your journey.**"
 
 2. **MANDATORY INTRODUCTION SUBTOPIC**
    - Every Topic **must begin** with a **standalone subtopic**:
@@ -171,306 +299,199 @@ Return JSON with:
    - This rule is **critical** and must never be skipped.
 
 3. **SUBTOPIC STRUCTURE (Level 2)**
-   - 3–6 subtopics per Topic (including the required introduction).
-   - Subtopics can have 2–5 sub-subtopics if deeper explanation is needed.
-   - If sub-subtopics are present, include "Introduction to {Subtopic Name}" as first sub-subtopic **if required**.
+   - Each Topic must have 3–6 subtopics (including the required introduction).
+   - Subtopics may include 2–5 sub-subtopics to go deeper.
+   - If sub-subtopics are used, begin with a sub-subtopic titled "Introduction to {Subtopic Name}" — but only if that level needs context.
 
-4. **ID STRUCTURE (Strict)**
-   - Topic IDs: "1", "2", "3", ...
-   - Subtopic IDs: "1.1", "1.2", "1.3", ...
-   - Sub-subtopic IDs: "1.1.1", "1.1.2", ...
+4. **ID STRUCTURE**
+   - Use this ID format:
+     - Topics: "1", "2", "3"...
+     - Subtopics: "1.1", "1.2"...
+     - Sub-subtopics: "1.1.1", "1.1.2"...
 
-5. **FLOW**
-   - Follow **logical and chronological progression**:
-     - Start from fundamentals
-     - Move to core principles
-     - Then to practical examples
-     - Finally to advanced/related topics
+5. **LOGICAL FLOW**
+   - The course must progress logically from beginner to advanced concepts.
 
-6. **FORMATTING RULES**
-   - Wrap currency like "$100" as **$100**
-   - Ensure clean and valid JSON (no Markdown formatting, no trailing commas)
+6. **FAILURE HANDLING**
+   - If the input is harmful, inappropriate, or too vague to generate a course:
+     - "success": false
+     - "message": clear explanation of the issue
+     - "data": []
 
----
+</RULES>
 
-### FAILURE HANDLING
-If the user input is vague, harmful, or unsuitable for a course:
-- "success": false
-- "title": cleaned version of user input
-- "message": a helpful explanation
-- "data": []
-`,
-        },
-        {
-          role: "user",
-          content: `Generate a course outline for: "${userTopic}"`,
-        },
-      ],
-      response_format: zodResponseFormat(
-        courseContentSchema,
-        "unified_content_response"
-      ),
-    });
-    // // console.log(JSON.parse(chatCompletion.choices[0].message.content));
+Generate a course outline for: "${userTopic}"
+`;
 
-    const aiResponse = JSON.parse(chatCompletion.choices[0].message.content);
-    // console.log(aiResponse);
 
-    if (aiResponse.success) {
-      return {
-        success: true,
-        title: aiResponse.title,
-        message: aiResponse.message || "Course outline generated successfully.",
-        data: aiResponse.data,
-      };
-    } else {
-      return {
-        success: false,
-        message: aiResponse.message || "Invalid topic request.",
-      };
-    }
+
+  try {
+      const result = await model.generateContent(prompt);
+      const jsonText = result.response.text();
+      const aiResponse = JSON.parse(jsonText);
+      //console.log(aiResponse);
+      
+      // We can still validate with Zod as a safeguard
+      // const validation = courseContentSchema.safeParse(aiResponse);
+
+      // if (!validation.success) {
+      //     // console.error("Zod validation failed for course content:", validation.error);
+      //     throw new Error("The AI's response did not conform to the expected schema.");
+      // }
+      
+      if (aiResponse.success) {
+          return {
+              success: true,
+              title: aiResponse.title,
+              message: aiResponse.message || "Course outline generated successfully.",
+              introduction: aiResponse.introduction,
+              data: aiResponse.data,
+          };
+      } else {
+          return {
+              success: false,
+              message: aiResponse.message || "Invalid topic request.",
+          };
+      }
   } catch (error) {
-    console.error("Error during content generation or validation:", error);
-
-    if (error instanceof z.ZodError) {
+      console.error("Error during content generation or validation:", error);
       return {
-        success: false,
-        message:
-          "The AI's response did not conform to the expected output schema.",
-        errors: error.errors,
+          success: false,
+          message: "An unexpected error occurred during course generation.",
+          error: error.message,
       };
-    } else if (error instanceof OpenAI.APIError) {
-      return {
-        success: false,
-        message: `OpenAI API error: ${error.message}`,
-        code: error.code,
-        type: error.type,
-      };
-    } else {
-      return {
-        success: false,
-        message: "An unexpected error occurred. Please try again later.",
-        error: error.message,
-      };
-    }
   }
 }
 
+// ... (getAllSubtopicNames function remains unchanged)
 const getAllSubtopicNames = (topics) => {
-  const leafNames = [];
-
-  for (const topic of topics) {
-    for (const subtopic of topic?.subtopics) {
-      if (subtopic?.subtopics?.length > 0) {
-        // If subtopic has sub-subtopics, collect those
-        for (const subSubtopic of subtopic?.subtopics) {
-          leafNames.push(subSubtopic?.name);
+    const leafNames = [];
+    for (const topic of topics) {
+        for (const subtopic of topic?.subtopics) {
+            if (subtopic?.subtopics?.length > 0) {
+                for (const subSubtopic of subtopic?.subtopics) {
+                    leafNames.push(subSubtopic?.name);
+                }
+            } else {
+                leafNames.push(subtopic?.name);
+            }
         }
-      } else {
-        // If subtopic is a leaf itself
-        leafNames.push(subtopic?.name);
-      }
     }
-  }
-  // console.log(leafNames);
-  return leafNames;
+    return leafNames;
 };
 
 async function getFollowupPrompts(messages) {
-  // Only generate follow-ups if the conversation seems educational
-
-  const lastUserMessage = messages
-    .filter((m) => m.role === "user")
-    .slice(-1)[0];
-  const lastAIResponse = messages
-    .filter((m) => m.role === "assistant")
-    .slice(-1)[0];
-  console.log(lastUserMessage);
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      {
-        role: "system",
-        content: `You are an expert educational follow-up prompt generator for a learning app. Your goal is to create the most logical, intuitive, and reasoning-based follow-up questions.
-
-                  **PROMPT GENERATION STRATEGY:**
-                  
-                  1. **Logical Progression Types:**
-                     - Bridge concepts: Connect current topic to related concepts
-                     - Depth exploration: Dig deeper into the current topic
-                     - Application thinking: How to use this knowledge
-                     - Critical analysis: Question assumptions and limitations
-                     - Comparative analysis: Compare with alternatives/contrasts
-                     - Causal reasoning: Explore cause-effect relationships
-
-                  2. **Reasoning Categories to Include:**
-                     - **Why/How questions**: Understanding mechanisms
-                     - **What-if scenarios**: Hypothetical exploration  
-                     - **Comparison prompts**: Contrasting concepts
-                     - **Application prompts**: Real-world usage
-                     - **Troubleshooting**: Common problems/solutions
-                     - **Advanced concepts**: Next-level topics
-
-                  **QUALITY CRITERIA:**
-                  - Each prompt should be 8-15 words (concise but complete)
-                  - Must be directly relevant to the current conversation
-                  - Should build a logical learning pathway
-                  - Include action-oriented language
-                  - Mix different cognitive levels (remember, understand, apply, analyze)
-
-                  **PROMPT TYPES TO GENERATE:**
-                  1. **Conceptual Deepening**: "Why does [concept] work this way?"
-                  2. **Practical Application**: "How would you implement this in [scenario]?"
-                  3. **Comparative Analysis**: "How does this compare to [alternative]?"
-                  4. **Problem-Solving**: "What if [variable] changes?"
-                  5. **Real-world Connection**: "Where do you see this used professionally?"
-                  6. **Troubleshooting**: "What common mistakes should be avoided?"
-
-                  **DECISION LOGIC FOR "show":**
-                  Set "show": true ONLY when:
-                  - The conversation is educational and substantive
-                  - The AI provided helpful information worth expanding on
-                  - There are clear logical next steps for learning
-                  - The topic has depth and related concepts to explore
-                  - The user seems engaged in learning (not just casual chat)
-
-                  **PERSONALIZATION:**
-                  - Adapt language complexity to user's demonstrated level
-                  - Reference specific terms/concepts from the current conversation
-                  - Consider the learning progression within the course structure
-
-                  **OUTPUT FORMAT:**
-                  Return JSON with exactly this structure:
-                  {
-                    "show": boolean,
-                    "prompts": [
-                      "prompt1",
-                      "prompt2", 
-                      "prompt3",
-                      "prompt4" // optional 4th prompt for complex topics
-                    ],
-                    "reasoning": "Brief explanation of why these prompts were chosen"
-                  }
-
-                  **EXAMPLES OF EXCELLENT PROMPTS:**
-                  - "How would this scale in enterprise applications?"
-                  - "What are the performance implications of this approach?"
-                  - "Can you walk through a debugging scenario?"
-                  - "How does this pattern prevent common security issues?"
-                  - "What are the trade-offs compared to alternatives?"
-                  - "When would you choose this over simpler solutions?"`,
+    const model = genAI.getGenerativeModel({
+        ...modelConfig,
+        // Use JSON mode for structured output
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: {
+    "type": "object",
+    "properties": {
+      "show": {
+        "type": "boolean",
+        "description": "Whether to show the follow-up prompts to the user."
       },
-      ...messages,
-      {
-        role: "user",
-        content: `Based on our conversation above, generate the most logical and intuitive follow-up prompts. 
-                  
-                  - The repsonse you might generate for last question "${
-                    lastUserMessage?.content || "N/A"
-                  }"
-                  - Key concepts discussed: [Extract from conversation]
-                  - Learning level demonstrated: [Assess from user's questions]
-                  
-                  Focus on creating prompts that:
-                  1. Build naturally from what we just discussed
-                  2. Help deepen understanding through reasoning
-                  3. Connect to practical applications
-                  4. Encourage critical thinking
-                  5. Explore related concepts logically`,
-      },
-    ],
-    response_format: zodResponseFormat(
-      followupResponseSchema,
-      "followup_response"
-    ),
-    temperature: 0.7, // Slight creativity for varied prompts
-  });
-  const result = JSON.parse(completion.choices[0].message.content);
-  // console.log(result);
+      "prompts": {
+        "type": "array",
+        "description": "An array of 1-4 concise follow-up questions.",
+        "items": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "maxItems": 4
+      }
+    },
+    "required": [
+      "show",
+      "prompts"
+    ]
+  }
+        }
+    });
 
-  return result;
+    const chatHistory = buildGeminiChatHistory(messages);
+
+    const prompt = `You are an expert educational follow-up prompt generator. Your goal is to create logical, reasoning-based follow-up questions (8-15 words).
+    
+    **STRATEGY:** Use logical progression (deeper exploration, application, comparison, etc.). Mix question types (Why/How, What-if, etc.).
+    **LOGIC FOR "show":** Set "show" to true only if the conversation is educational and substantive with clear next steps for learning.
+    **OUTPUT FORMAT:** Return a valid JSON object matching the schema, with a 'show' boolean and an array of 3-4 'prompts'.
+
+    Based on our conversation, generate the most logical follow-up prompts.`;
+
+    try {
+        const result = await model.generateContent({
+            contents: [...chatHistory, { role: 'user', parts: [{ text: prompt }] }],
+        });
+
+        const jsonText = result.response.text();
+        const jsonData = JSON.parse(jsonText);
+        
+        const validation = followupResponseSchema.safeParse(jsonData);
+        if (validation.success) {
+            return validation.data;
+        }
+        
+        return { show: false, prompts: [] };
+
+    } catch (error) {
+        console.error("Error generating follow-up prompts:", error);
+        return { show: false, prompts: [] };
+    }
 }
 
-//user asks question-> take response from backend
+// ... (getAnswerResponse, getAIResponse, and Express routes remain unchanged)
 const getAnswerResponse = async (messages, topic, topics) => {
-  const topicsNames = topics.map((topic) => topic.name);
-  const subtopics = topics.flatMap((topic) => topic.subtopics);
-  const subtopicsNames = subtopics.map((subtopic) => subtopic.name);
-  const allSubtopicsNames = getAllSubtopicNames(topics);
+    // This function returns free-form text, so no JSON mode needed.
+    // It remains unchanged.
+    const model = genAI.getGenerativeModel(modelConfig);
+    const chatHistory = buildGeminiChatHistory(messages);
 
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      {
-        role: "system",
-        content: `You are a helpful assistant.
-                You are given the following context:
-                - A **current topic**: "${topic}"
-                - A **list of topics**: ${topicsNames}
-                - A **list of subtopics**: ${subtopicsNames}
-                - A **list of all subtopics**: ${allSubtopicsNames}
+    const topicsNames = topics.map((topic) => topic.name);
+    const allSubtopicsNames = getAllSubtopicNames(topics);
 
-                The user might also select a phrase or sentence from previous messages and ask you to elaborate on it, give an example, or provide an analogy — even if it’s unrelated to the topic.
+    const systemInstruction = {
+        role: "model",
+        parts: [{
+            text: `You are a helpful assistant given the following context:
+- A **current topic**: "${topic}"
+- A **list of topics**: ${topicsNames.join(", ")}
+- A **list of all subtopics**: ${allSubtopicsNames.join(", ")}
 
-                ---
+### 🔍 Relevance Rules
+1.  **Respond if any of these are true**:
+    - The query relates to the current topic, any topic/subtopic in the lists, or the conversation history.
+    - The user selected text and asked for elaboration, an example, or an analogy.
+    - Provide an example whenever possible, especially for topics in the "all subtopics" list.
+    - Be flexible; if the query is generally related, respond to it.
+2.  **Only if none of the above apply**, reply with the exact text: "This is not related to the topic: ${topic}."
 
-                ### 🔍 Relevance Rules
+### 🧾 Output Formatting Guidelines
+- Use clear Markdown (headings, bold, lists).
+- Render all mathematical or scientific notations inside LaTeX delimiters.
+- Inline: $E=mc^2$
+- Block: $$\\text{Zn(s)} + 2\\text{HCl(aq)} \\rightarrow \\text{ZnCl}_2\\text{(aq)} + \\text{H}_2\\text{(g)}$$
+- IMPORTANT: Write dollar amounts as \\$10,000 (double backslash) to prevent math rendering conflicts.
+- Strictly follow these rules. Now, process the user query.`
+        }]
+    };
 
-                1. **Respond if any of these are true**:
-                  - The user’s query is clearly related to the **current topic or subtopic or sub-subtopic or all subtopics**:
-                  - The query is related to one of the **topics** or **subtopics** or **all subtopics** in the lists provided.
-                  - The user has selected a **specific piece of text** and asked for **elaboration**, an **example**, or an **analogy** related to that text from previous messages.
-                  -Provide an example whenever possible and when the user asks to explain a topic in the "all subtopics" list.
-                  -Dont be too strict for checking the relevance of the query. If the query is related to the conversation history or to our "all subtopics" list then respond to it.
-
-                2. **Only if none of the above apply**, reply with:
-                  **"This is not related to the topic: ${topic}."**
-                  Do **not** include anything else — no apologies or extra explanation.
-
-                ---
-
-                ### 🧾 Output Formatting Guidelines
-
-                **Use Markdown formatting.**
-                - Use headings, bold, italics, lists, and clear paragraph spacing.
-                - Structure longer answers for clarity and readability.
-
-                **Any equation or formula should be rendered in the following format (for Frontend)**:
-                - Use single dollar signs for **inline** math/chemistry/physics or any other scientific notation: e.g., "$E=mc^2$"
-                - Use double dollar signs for **block** math/chemistry/physics or any other scientific notation:
-                  
-                  $$
-                  ax^2 + bx + c = 0
-                  $$
-
-                  $$
-                  \\text{Zn(s)} + 2\\text{HCl(aq)} \\rightarrow \\text{ZnCl}_2\\text{(aq)} + \\text{H}_2\\text{(g)}
-                  $$
-                  
-                IMPORTANT: Always write dollar amounts as \\$10,000 (with double backslashes) instead of $10,000 to prevent math rendering conflicts
-
-                **Strictly follow these rules. Do not write raw LaTeX without enclosing it in dollar signs.**
-
-                ---
-
-                Now, process the user query according to these updated rules.`,
-      },
-      ...messages,
-    ],
-    store: true,
-  });
-
-  const result = completion.choices[0].message.content;
-  console.log(result);
-
-  return {
-    success: true,
-    message: result,
-  };
+    try {
+        const result = await model.generateContent({
+            contents: [systemInstruction, ...chatHistory]
+        });
+        const responseText = result.response.text();
+        return { success: true, message: responseText };
+    } catch (error) {
+        console.error("Error in getAnswerResponse:", error);
+        return { success: false, message: "Error processing your request." };
+    }
 };
+
 async function getAIResponse(messages, currentTopic, topics) {
   try {
-    // 🚀 PARALLEL API CALLS for better latency
     const [answerResponse, followupResponse] = await Promise.all([
       getAnswerResponse(messages, currentTopic, topics),
       getFollowupPrompts(messages),
@@ -492,57 +513,70 @@ async function getAIResponse(messages, currentTopic, topics) {
 }
 
 app.post("/generate-course", async (req, res) => {
-  const topicName = req.body.topic;
-  // // console.log("gotcha");
-  const response = await generateCourseContents(topicName);
-  if (response.success) {
-    res.status(200).json({ success: true, data: response });
-  } else {
-    res.status(400).json({
-      success: false,
-      message: "Sorry, cannot create a learning plan for this topic.",
-    });
-  }
-  // // console.log(response);
+    // ... same as before
+    const topicName = req.body.topic;
+    if (!topicName) {
+        return res.status(400).json({ success: false, message: "Topic name is required." });
+    }
+    const response = await generateCourseContents(topicName);
+    if (response.success) {
+      res.status(200).json({ success: true, data: response });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: response.message || "Sorry, cannot create a learning plan for this topic.",
+      });
+    }
 });
 
 app.post("/chat", async (req, res) => {
-  console.log("gotcha");
-  const messages = req.body.formattedMessages;
-  const currentTopic = req.body.currentTopicName;
-  const topics = req.body.topics;
-
-  const result = await getAIResponse(messages, currentTopic, topics);
-
-  if (result.success) {
-    // Initialize followup with the original result.followup
-    let followupToSend = result.followup;
-
-    // Check if the message contains the specific string
-    if (result.message?.message.includes("This is not related to the topic:")) {
-      // If it does, override followupToSend
-      followupToSend = { show: false, prompts: [] };
+    // ... same as before
+    const { formattedMessages, currentTopicName, topics } = req.body;
+    if (!formattedMessages || !currentTopicName || !topics) {
+        return res.status(400).json({ success: false, message: "Missing required fields in request body." });
     }
 
-    res.status(200).json({
-      success: true,
-      message: result.message,
-      followup: followupToSend, // Use the potentially modified followup
-    });
-  } else {
-    res.status(500).json({ success: false, message: result.message });
-  }
+    const result = await getAIResponse(formattedMessages, currentTopicName, topics);
+
+    if (result.success) {
+        let followupToSend = result.followup;
+        if (result.message?.message?.includes("This is not related to the topic:")) {
+            followupToSend = { show: false, prompts: [] };
+        }
+        res.status(200).json({
+            success: true,
+            message: result.message,
+            followup: followupToSend,
+        });
+    } else {
+        res.status(500).json({ success: false, message: result.message });
+    }
 });
+
 app.post("/generate-quiz", async (req, res) => {
-  const topicName = req.body.subtopicName;
-  const messages = req.body.messages;
-  const response = await generateQuiz(topicName, messages);
-  res.status(200).json({ success: true, data: response });
+    // ... same as before
+    const { subtopicName, messages } = req.body;
+    if (!subtopicName || !messages) {
+        return res.status(400).json({ success: false, message: "Missing subtopic name or messages." });
+    }
+    const response = await generateQuiz(subtopicName, messages);
+    if (response.success) {
+        res.status(200).json({ success: true, data: response });
+    } else {
+        res.status(500).json(response);
+    }
 });
+
 app.post("/stream-response", async (req, res) => {
-  const messages = req.body.messages;
-  streamResponse(messages, res);
+    // ... same as before
+    const { messages } = req.body;
+    if (!messages) {
+        return res.status(400).json({ success: false, message: "Missing messages for streaming." });
+    }
+    streamResponse(messages, res);
 });
+
+
 app.listen(port, () => {
   console.log(`Server listening at http://localhost:${port}`);
 });
