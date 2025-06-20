@@ -42,6 +42,7 @@ const buildGeminiChatHistory = (messages) => {
 
 //generate quiz along with answers
 const generateQuiz = async (topicName, messages) => {
+    // 
   //console.log(`Generating quiz for topic: ${topicName}`);
   const model = genAI.getGenerativeModel({
       ...modelConfig,
