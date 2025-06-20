@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "zod-to-json-schema": "^3.24.5"
+  }
+}

@@ -41,9 +41,8 @@ const buildGeminiChatHistory = (messages) => {
 };
 
 //generate quiz along with answers
-const generateQuiz = async (topicName, messages) => {
-    // 
-  //console.log(`Generating quiz for topic: ${topicName}`);
+const generateQuiz = async ({ title, subtopics = [], questionCount = 5, messages = null }) => {
+  //console.log(`Generating quiz for topic: ${title}`);
   const model = genAI.getGenerativeModel({
       ...modelConfig,
       // Use JSON mode for structured output
@@ -108,11 +107,23 @@ const generateQuiz = async (topicName, messages) => {
       }
   });
 
-  const chatHistory = buildGeminiChatHistory(messages);
+  const chatHistory = messages ? buildGeminiChatHistory(messages) : [];
+  const prompt = messages
+        ? `You are a helpful assistant designed to generate quizzes. Based on the provided topic "${title}" and the preceding conversation, create a short quiz with 3-5 questions and answers. Ensure the quiz is relevant to the topic. Output a valid JSON object matching the requested schema.`
+        : `You are an expert quiz creator. Your task is to generate a comprehensive quiz.
+           **Topic:** "${title}"
+           **Subtopics to cover:** ${subtopics.join(", ")}
+           **Number of Questions:** Generate exactly ${questionCount} questions.
+           **Instructions:**
+           - The questions should cover the provided subtopics.
+           - The difficulty should be varied.
+           - Ensure the entire output is a single, valid JSON object that conforms to the schema. Do not include any text or markdown before or after the JSON.
+           - Ensure there are exactly 4 options for each question.
+           - Ensure the 'correct' field is the 0-based index of the correct answer.`;
 
   try {
       const result = await model.generateContent([
-          `You are a helpful assistant designed to generate quizzes. Based on the provided topic "${topicName}" and the preceding conversation, create a short quiz with questions and answers. Ensure the quiz is relevant to the topic. Output a valid JSON object matching the requested schema.`,
+          prompt,
           ...chatHistory
       ]);
       
@@ -555,14 +566,31 @@ app.post("/chat", async (req, res) => {
 });
 
 app.post("/generate-quiz", async (req, res) => {
-    // ... same as before
-    const { subtopicName, messages } = req.body;
-    if (!subtopicName || !messages) {
-        return res.status(400).json({ success: false, message: "Missing subtopic name or messages." });
+    const { quizType, title, subtopics, questionCount, messages } = req.body;
+
+    if (!quizType || !title) {
+        return res.status(400).json({ success: false, message: "Missing quizType or title." });
     }
-    const response = await generateQuiz(subtopicName, messages);
+
+    if (quizType === 'subtopic' && !messages) {
+        return res.status(400).json({ success: false, message: "Messages are required for subtopic quizzes." });
+    }
+    
+    if ((quizType === 'topic' || quizType === 'overall') && (!subtopics || subtopics.length === 0)) {
+        return res.status(400).json({ success: false, message: "Subtopics are required for this quiz type." });
+    }
+
+    const quizConfig = {
+        title,
+        subtopics,
+        questionCount,
+        messages
+    };
+
+    const response = await generateQuiz(quizConfig);
     if (response.success) {
-        res.status(200).json({ success: true, data: response });
+      console.log(response.data);
+      res.status(200).json({ success: true, data: response.data });
     } else {
         res.status(500).json(response);
     }

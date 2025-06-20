@@ -7,7 +7,111 @@ import {
   ChevronRight,
   Circle,
   CheckCircle,
+  BrainCircuit,
+  Loader,
+  ChevronUp
 } from "lucide-react";
+
+const QuizActions = ({
+  topic,
+  quizId,
+  isOverall,
+  allTopics,
+  quizzes,
+  handleGenerateQuiz,
+  handleRevisitQuiz,
+  isGeneratingQuiz,
+  activeQuiz
+}) => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const existingQuiz = quizzes[quizId];
+  const isThisQuizGenerating = isGeneratingQuiz && activeQuiz?.id === quizId;
+
+  const getAllSubtopicNamesForTopic = (targetTopic) => {
+    let names = [];
+    targetTopic.subtopics?.forEach(st => {
+      if (st.subtopics && st.subtopics.length > 0) {
+        st.subtopics.forEach(sst => names.push(sst.name));
+      } else {
+        names.push(st.name);
+      }
+    });
+    // console.log(names);
+    return names;
+  };
+
+  const getAllSubtopicsForCourse = (courseTopics) => {
+    let allNames = [];
+    courseTopics.forEach(t => {
+      allNames.push(...getAllSubtopicNamesForTopic(t));
+    });
+    // console.log(allNames);
+    return allNames;
+  };
+
+  const handleGenerateClick = () => {
+    // console.log("clicked");
+    
+    const subtopics = isOverall ? getAllSubtopicsForCourse(allTopics) : getAllSubtopicNamesForTopic(topic);
+    handleGenerateQuiz({
+      quizType: isOverall ? 'overall' : 'topic',
+      id: quizId,
+      title: isOverall ? 'Overall Review' : topic.name,
+      subtopics,
+      questionCount: isOverall ? 15 : 10,
+    });
+    setIsMenuOpen(false);
+  };
+
+  const handleRevisitClick = () => {
+    handleRevisitQuiz(quizId, isOverall ? 'Overall Review' : topic.name, isOverall ? 'overall' : 'topic');
+    setIsMenuOpen(false);
+  };
+  
+  const handleToggleMenu = () => {
+    if (existingQuiz) {
+      setIsMenuOpen(prev => !prev);
+    } else {
+      handleGenerateClick();
+    }
+  };
+
+  const buttonDisabled = !!activeQuiz || isGeneratingQuiz;
+
+  return (
+    <div className="relative">
+      <button
+        onClick={handleToggleMenu}
+        disabled={buttonDisabled}
+        className={`flex items-center flex-start gap-2 w-content text-sm font-medium px-3 py-2 mt-1 rounded-md transition-colors
+          ${isThisQuizGenerating ? 'bg-blue-100 text-sky-800 animate-pulse' : 'bg-sky-50 hover:bg-sky-100 text-sky-700'}
+          ${buttonDisabled && !isThisQuizGenerating ? 'opacity-60 cursor-not-allowed' : ''}
+        `}
+      >
+        {isThisQuizGenerating ? <Loader size={16} className="animate-spin" /> : <BrainCircuit size={16} />}
+        <span>{isThisQuizGenerating ? 'Generating...' : (isOverall ? 'Overall Quiz' : 'Topic Quiz')}</span>
+        {existingQuiz && (isMenuOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />)}
+      </button>
+
+      {isMenuOpen && existingQuiz && (
+        <div className="absolute z-10 right-0 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg p-1.5">
+          <button
+            onClick={handleRevisitClick}
+            className="w-full text-left text-sm px-3 py-1.5 rounded-md hover:bg-gray-100"
+          >
+            Revisit Previous Quiz
+          </button>
+          <button
+            onClick={handleGenerateClick}
+            className="w-full text-left text-sm px-3 py-1.5 rounded-md hover:bg-gray-100"
+          >
+            Generate New One
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
 
 // The primary changes are in this component
 const SubtopicItem = ({
@@ -18,7 +122,7 @@ const SubtopicItem = ({
   completedSubtopics,
   toggleAccordion,
   openTopicIds,
-  isZQuizActive,
+  activeQuiz,
 }) => {
   const hasSubSubtopics = subtopic.subtopics && subtopic.subtopics.length > 0;
   const isSubtopicOpen = openTopicIds.has(subtopic.id);
@@ -30,9 +134,9 @@ const SubtopicItem = ({
         <button
           onClick={() => toggleAccordion(subtopic.id)}
           className={`w-full flex items-center text-left gap-3 p-2.5 rounded-md hover:bg-light-gray focus:outline-none focus:bg-light-gray transition-colors duration-150 ${
-            isThinking ? "opacity-70 cursor-not-allowed" : ""
+            isThinking || !!activeQuiz ? "opacity-70 cursor-not-allowed" : ""
           }`}
-          disabled={isThinking || isZQuizActive}
+          disabled={isThinking || !!activeQuiz}
         >
           <span className="font-medium text-sm text-dark-gray whitespace-nowrap">
             {subtopic.name}
@@ -57,9 +161,9 @@ const SubtopicItem = ({
                   )
                 }
                 className={`w-full flex items-center space-x-2.5 p-2 rounded-md text-left text-sm hover:bg-light-gray focus:outline-none focus:bg-light-gray transition-colors duration-150 ${
-                  isThinking ? "opacity-70 cursor-not-allowed" : ""
+                  isThinking || !!activeQuiz ? "opacity-70 cursor-not-allowed" : ""
                 }`}
-                disabled={isThinking || isZQuizActive}
+                disabled={isThinking || !!activeQuiz}
               >
                 {completedSubtopics.has(subSubtopic.id) ? (
                   <CheckCircle size={16} className="text-accent" />
@@ -83,9 +187,9 @@ const SubtopicItem = ({
       key={subtopic.id}
       onClick={() => handleSubtopicClick(topic.id, subtopic.id, subtopic.name)}
       className={`w-full flex items-center space-x-2.5 p-2 rounded-md text-left text-sm hover:bg-light-gray focus:outline-none focus:bg-light-gray transition-colors duration-150 ${
-        isThinking ? "opacity-70 cursor-not-allowed" : ""
+        isThinking || !!activeQuiz ? "opacity-70 cursor-not-allowed" : ""
       }`}
-      disabled={isThinking || isZQuizActive}
+      disabled={isThinking || !!activeQuiz}
     >
       {completedSubtopics.has(subtopic.id) ? (
         <CheckCircle size={16} className="text-accent" />
@@ -113,7 +217,11 @@ const Sidebar = ({
   totalSubtopics,
   isGenerating,
   isThinking,
-  isZQuizActive,
+  activeQuiz,
+  quizzes,
+  handleGenerateQuiz,
+  handleRevisitQuiz,
+  isGeneratingQuiz,
 }) => {
   const [openTopicIds, setOpenTopicIds] = useState(new Set([]));
   const navigate = useNavigate();
@@ -169,12 +277,12 @@ const Sidebar = ({
             <button
               onClick={!isThinking ? onRegenerate : undefined}
               className={`text-gray-500 hover:text-gray-800 ${
-                isThinking || isZQuizActive
+                isThinking || !!activeQuiz
                   ? "opacity-50 cursor-not-allowed"
                   : ""
               }`}
               title="Regenerate Topics"
-              disabled={isGenerating || isThinking || isZQuizActive}
+              disabled={isGenerating || isThinking || !!activeQuiz}
             >
               <RefreshCw
                 size={20}
@@ -204,15 +312,15 @@ const Sidebar = ({
         <nav className="flex-1 overflow-y-auto overflow-x-auto space-y-1 pr-1">
           <div className="inline-block min-w-full">
             {topics.map((topic) => (
-              <div key={topic.id}>
+              <div key={topic.id} className="mb-2">
                 <button
                   onClick={() => toggleAccordion(topic.id)}
                   className={`w-full flex items-center gap-3 text-left p-2.5 rounded-md hover:bg-gray-100 focus:outline-none focus:bg-gray-100 transition-colors duration-150 ${
-                    isThinking || isZQuizActive
+                    isThinking || !!activeQuiz
                       ? "opacity-70 cursor-not-allowed"
                       : ""
                   }`}
-                  disabled={isThinking || isZQuizActive}
+                  disabled={isThinking || !!activeQuiz}
                 >
                   <span className="font-medium text-sm text-gray-700 whitespace-nowrap">
                     {topic.name}
@@ -235,13 +343,34 @@ const Sidebar = ({
                         completedSubtopics={completedSubtopics}
                         toggleAccordion={toggleAccordion}
                         openTopicIds={openTopicIds}
-                        isZQuizActive={isZQuizActive}
+                        activeQuiz={activeQuiz}
                       />
                     ))}
+                     <QuizActions
+                      topic={topic}
+                      quizId={`topic-${topic.id}`}
+                      quizzes={quizzes}
+                      handleGenerateQuiz={handleGenerateQuiz}
+                      handleRevisitQuiz={handleRevisitQuiz}
+                      isGeneratingQuiz={isGeneratingQuiz}
+                      activeQuiz={activeQuiz}
+                    />
                   </div>
                 )}
               </div>
             ))}
+             <div className="mt-4 pt-4 border-t border-gray-200">
+              <QuizActions
+                isOverall={true}
+                allTopics={topics}
+                quizId="overall"
+                quizzes={quizzes}
+                handleGenerateQuiz={handleGenerateQuiz}
+                handleRevisitQuiz={handleRevisitQuiz}
+                isGeneratingQuiz={isGeneratingQuiz}
+                activeQuiz={activeQuiz}
+              />
+            </div>
           </div>
         </nav>
       </div>

@@ -74,41 +74,24 @@ const allQuizData = {
   // Add more subtopics and their respective questions here
 };
 
-const Quiz = ({ subtopicName, onClose, messages, isQuizActive }) => {
-  const [questions, setQuestions] = useState([]);
+const Quiz = ({ quizData, title, onClose, onSubmit, isQuizActive }) => {
+  const [questions, setQuestions] = useState(quizData?.questions || []);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState(""); // Stores the index of the selected option as string for the CURRENT question
   const [userSelections, setUserSelections] = useState({}); // Stores { [questionId]: selectedOptionIndexString } for ALL questions
   const [showResult, setShowResult] = useState(false);
   const [score, setScore] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const fetchQuiz = async () => {
-      try {
-        const formattedMessages = messages.map((msg) => ({
-          role: msg.sender === "llm" ? "assistant" : "user",
-          content: msg.text,
-        }));
-        const response = await generateQuiz(subtopicName, formattedMessages);
-        // //console.log(response.data);
-        const newQuestions = response.data.data.questions;
-        setQuestions(newQuestions);
-
-        // Reset quiz state when subtopic changes or quiz initially loads
-        setCurrentQuestionIndex(0);
-        setSelectedAnswer("");
-        setShowResult(false);
-        setScore(0);
-        setUserSelections({}); // Reset user selections
-      } catch (error) {
-        console.error("Failed to fetch quiz:", error);
-      }
-    };
-
-    if (subtopicName) {
-      fetchQuiz();
-    }
-  }, []);
+    // Reset state if quizData changes (e.g., new quiz is loaded)
+    setQuestions(quizData?.questions || []);
+    setCurrentQuestionIndex(0);
+    setSelectedAnswer("");
+    setShowResult(false);
+    setScore(0);
+    setUserSelections({});
+  }, [quizData]);
 
   const handleAnswerSubmit = () => {
     if (selectedAnswer === "") return; // Ensure an answer is selected
@@ -117,13 +100,16 @@ const Quiz = ({ subtopicName, onClose, messages, isQuizActive }) => {
     const isCorrect = parseInt(selectedAnswer) === currentQ.correct;
 
     // Store the user's selection for this question
-    setUserSelections((prevSelections) => ({
-      ...prevSelections,
+    const updatedSelections = {
+      ...userSelections,
       [currentQ.id]: selectedAnswer,
-    }));
+    };
+    setUserSelections(updatedSelections);
 
+    let currentScore = score;
     if (isCorrect) {
-      setScore((prevScore) => prevScore + 1);
+      currentScore = score + 1;
+      setScore(currentScore);
     }
 
     if (currentQuestionIndex < questions.length - 1) {
@@ -131,26 +117,11 @@ const Quiz = ({ subtopicName, onClose, messages, isQuizActive }) => {
       setSelectedAnswer(""); // Reset selection for next question
     } else {
       setShowResult(true);
+      setIsSubmitting(true);
+      onSubmit(currentScore, updatedSelections); // Submit final results
     }
   };
-  const generateQuiz = async (subtopicName, messages) => {
-    // //console.log(subtopicName, messages);
 
-    const response = await fetch(
-      `${import.meta.env.VITE_BACKEND_URL}/generate-quiz`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ subtopicName, messages }),
-      }
-    );
-
-    // //console.log(response);
-
-    return response.json();
-  };
   const resetQuiz = async () => {
     setCurrentQuestionIndex(0);
     setSelectedAnswer("");
@@ -177,12 +148,12 @@ const Quiz = ({ subtopicName, onClose, messages, isQuizActive }) => {
       return `$${inner.trim()}$`;
     });
   }
-  if (questions.length === 0) {
+  if (!quizData || questions.length === 0) {
     return (
       <div className="p-8 mb-4 bg-white border border-gray-300 rounded-lg shadow min-w-full">
         <p className="flex items-center justify-center gap-2 text-gray-600 text-md font-medium">
           <Loader size={21} className="text-dark-gray animate-spin" />
-          {`Creating a quiz on ${subtopicName}...`}
+          {`Creating a quiz on ${title}...`}
         </p>
       </div>
     );
@@ -193,7 +164,7 @@ const Quiz = ({ subtopicName, onClose, messages, isQuizActive }) => {
       <div className="p-4 md:p-6 mb-4 bg-white border border-gray-300 rounded-lg shadow-lg text-gray-700 ">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold">
-            Quiz Complete: {subtopicName}
+            Quiz Complete: {title}
           </h2>
           <button
             onClick={onClose}
@@ -230,7 +201,12 @@ const Quiz = ({ subtopicName, onClose, messages, isQuizActive }) => {
                 className="p-3 bg-gray-50 rounded-md border border-gray-200"
               >
                 <p className="font-medium text-[15px] text-gray-800 mb-2">
-                  {questionIdx + 1}. {q.question}
+                  <ReactMarkdown
+                      remarkPlugins={[remarkMath, remarkGfm]}
+                      rehypePlugins={[rehypeKatex]}
+                    >
+                      {replaceLatexInline(`${questionIdx + 1}. ${q.question}`)}
+                  </ReactMarkdown>
                 </p>
                 <div className="space-y-1.5">
                   {q.options.map((optionText, optionIdx) => {
@@ -281,7 +257,11 @@ const Quiz = ({ subtopicName, onClose, messages, isQuizActive }) => {
 
                     return (
                       <div key={optionIdx} className={optionClasses}>
-                        <span>{optionText}</span>
+                        <span>
+                
+                            {replaceLatexInline(optionText)}
+                     
+                        </span>
                         {correctnessIndicator}
                       </div>
                     );
@@ -317,11 +297,13 @@ const Quiz = ({ subtopicName, onClose, messages, isQuizActive }) => {
 
   // Current question display (remains largely the same)
   const currentQ = questions[currentQuestionIndex];
+  // console.log(currentQ);
+  // console.log("heyyyaaa");
   return (
     <div className="p-4 md:p-6 mb-4 bg-white border border-gray-300 rounded-lg shadow-lg text-gray-700 max-h-120 overflow-y-auto">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-semibold">
-          Quiz: {subtopicName} (Question {currentQuestionIndex + 1} of{" "}
+          Quiz: {title} (Question {currentQuestionIndex + 1} of{" "}
           {questions.length})
         </h2>
         <button
@@ -332,8 +314,11 @@ const Quiz = ({ subtopicName, onClose, messages, isQuizActive }) => {
         </button>
       </div>
       <div className="space-y-4">
-        <p className="text-md font-medium min-h-[3em]">{currentQ.question}</p>{" "}
-        {/* Added min-h for consistency */}
+        <p className="text-md font-medium min-h-[3em]">
+  
+            {replaceLatexInline(currentQ.question)}
+        
+        </p>
         <div className="space-y-2">
           {currentQ.options.map((option, index) => (
             <label

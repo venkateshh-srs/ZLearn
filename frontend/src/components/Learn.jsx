@@ -12,6 +12,7 @@ function Learn() {
   const [topics, setTopics] = useState([]);
   const [completedSubtopics, setCompletedSubtopics] = useState(new Set());
   const [chatThreads, setChatThreads] = useState({});
+  const [quizzes, setQuizzes] = useState({});
   const [currentChat, setCurrentChat] = useState({
     topicId: null,
     subtopicId: null,
@@ -25,7 +26,8 @@ function Learn() {
   // UI State
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isThinking, setIsThinking] = useState(false);
-  const [isZQuizActive, setIsZQuizActive] = useState(false);
+  const [activeQuiz, setActiveQuiz] = useState(null);
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
   const [scrollToMessageId, setScrollToMessageId] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [relatedTopicsByThread, setRelatedTopicsByThread] = useState({});
@@ -52,6 +54,7 @@ function Learn() {
         chatThreads: {1:[{id:1,sender:"llm",text:newCourseData.introduction,thinking:false}]},
         relatedTopicsByThread: {},
         completedSubtopics: [],
+        quizzes: {},
         currentChat: { topicId: 1, subtopicId: null, subtopicName: "" },
         lastAccessed: new Date().toISOString(),
       };
@@ -84,6 +87,7 @@ function Learn() {
         setTopics(data.topics || []);
         setCompletedSubtopics(new Set(data.completedSubtopics || []));
         setChatThreads(data.chatThreads || {});
+        setQuizzes(data.quizzes || {});
         setCurrentTopicId(data.id || null);
         setRelatedTopicsByThread(data.relatedTopicsByThread || {});
         setCurrentChat(
@@ -121,6 +125,7 @@ function Learn() {
       topics,
       completedSubtopics: Array.from(completedSubtopics),
       chatThreads,
+      quizzes,
       relatedTopicsByThread,
       currentChat,
       progress,
@@ -129,12 +134,13 @@ function Learn() {
 
     allCourses[currentTopicId] = courseData;
     localStorage.setItem("learningJourneyHistory", JSON.stringify(allCourses));
-    // //console.log(JSON.parse(localStorage.getItem("learningJourneyHistory")));
+    // console.log(JSON.parse(localStorage.getItem("learningJourneyHistory")));
   }, [
     currentTopicName,
     topics,
     completedSubtopics,
     chatThreads,
+    quizzes,
     relatedTopicsByThread,
     currentChat,
     currentTopicId,
@@ -454,6 +460,7 @@ function Learn() {
     // Clear progress for the current course
     setCompletedSubtopics(new Set());
     setChatThreads({});
+    setQuizzes({});
     setCurrentChat({ topicId: 1, subtopicId: null, subtopicName: "" });
     setRelatedTopicsByThread({});
     abortControllerRef.current = new AbortController();
@@ -506,6 +513,66 @@ function Learn() {
       ? Math.round((completedSubtopics.size / totalSubtopics) * 100)
       : 0;
 
+  const handleGenerateQuiz = async ({ quizType, id, title, subtopics, questionCount, messages = null }) => {
+    setIsGeneratingQuiz(true);
+    setActiveQuiz({ type: quizType, id, title, data: null }); // Show loading state in QuizComponent
+
+    try {
+      // console.log("got it");
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/generate-quiz`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quizType, title, subtopics, questionCount, messages }),
+      });
+     
+
+      const result = await response.json();
+      // console.log(result);
+      if (result.success) {
+        const quizResult = {
+          questions: result.data.questions,
+          userSelections: {},
+          score: 0,
+        };
+        // console.log(quizResult);
+        setQuizzes(prev => ({ ...prev, [id]: quizResult }));
+        setActiveQuiz({ type: quizType, id, title, data: quizResult });
+      } else {
+        throw new Error(result.message || 'Failed to generate quiz');
+      }
+    } catch (error) {
+      console.log(error);
+      console.error("Error generating quiz:", error);
+      setErrorMessage(`Failed to generate quiz for ${title}. Please try again.`);
+      setActiveQuiz(null); // Close quiz component on error
+    } finally {
+      setIsGeneratingQuiz(false);
+    }
+  };
+
+  const handleRevisitQuiz = (id, title, type) => {
+    const quizData = quizzes[id];
+    if (quizData) {
+      // console.log(quizData);
+      setActiveQuiz({ type, id, title, data: quizData });
+    }
+  };
+
+  const handleQuizSubmit = (quizId, score, userSelections) => {
+    setQuizzes(prev => ({
+      ...prev,
+      [quizId]: {
+        ...prev[quizId],
+        score,
+        userSelections,
+      },
+    }));
+  };
+
+  const handleQuizClose = () => {
+    setActiveQuiz(null);
+  };
+
   if (!currentTopicName) {
     // Render a loading state or null while we determine the topic or redirect
     return null;
@@ -528,7 +595,11 @@ function Learn() {
         isGenerating={isGenerating}
         isThinking={isThinking}
         setIsThinking={setIsThinking}
-        isZQuizActive={isZQuizActive}
+        activeQuiz={activeQuiz}
+        quizzes={quizzes}
+        handleGenerateQuiz={handleGenerateQuiz}
+        handleRevisitQuiz={handleRevisitQuiz}
+        isGeneratingQuiz={isGeneratingQuiz}
       />
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* The mobile header that was here is now integrated into ChatInterface */}
@@ -543,8 +614,11 @@ function Learn() {
           toggleSidebar={toggleSidebar}
           isThinking={isThinking}
           setIsThinking={setIsThinking}
-          isZQuizActive={isZQuizActive}
-          setIsZQuizActive={setIsZQuizActive}
+          activeQuiz={activeQuiz}
+          setActiveQuiz={setActiveQuiz}
+          handleGenerateQuiz={handleGenerateQuiz}
+          handleQuizClose={handleQuizClose}
+          handleQuizSubmit={handleQuizSubmit}
           scrollToMessageId={scrollToMessageId}
           setScrollToMessageId={setScrollToMessageId}
           relatedTopics={relatedTopicsByThread[currentChat.topicId] || []}

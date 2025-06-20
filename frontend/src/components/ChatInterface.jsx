@@ -20,7 +20,7 @@ import {
   Home,
   Loader,
 } from "lucide-react";
-import QuizComponent from "./Quiz";
+import Quiz from "./Quiz";
 import TextSelectionMenu from "./TextSelectionMenu"; // Import the new component
 import RelatedTopics from "./RelatedTopics";
 
@@ -32,8 +32,11 @@ const ChatInterface = ({
   mainTopicName,
   toggleSidebar,
   isThinking,
-  isZQuizActive,
-  setIsZQuizActive,
+  activeQuiz,
+  setActiveQuiz,
+  handleGenerateQuiz,
+  handleQuizClose,
+  handleQuizSubmit,
   topics,
   currentChat,
   scrollToMessageId,
@@ -56,10 +59,8 @@ const ChatInterface = ({
   const messageRefs = useRef({});
   const navigate = useNavigate();
   const [showRawText, setShowRawText] = useState(false);
-  const [isQuizActive, setIsQuizActive] = useState(false);
-  const [activeQuizSubtopic, setActiveQuizSubtopic] = useState("");
   const Spinner = () => (
-    <Loader size={16} className="animate-spin text-dark-gray" />
+    <Loader size={16} className="text-dark-gray animate-spin" />
   );
 
   const handleRelatedTopicClick = (prompt) => {
@@ -100,7 +101,7 @@ const ChatInterface = ({
   // Handler for actions from the text selection menu
   const handleTextSelectionAction = (action, selectedText) => {
     // //console.log(isQuizActive);
-    if (isQuizActive) {
+    if (activeQuiz) {
       return;
     }
 
@@ -123,7 +124,7 @@ const ChatInterface = ({
     if (
       messages.length === 0 &&
       !isTopicSelected &&
-      !isQuizActive &&
+      !activeQuiz &&
       !isThinking
     ) {
       return (
@@ -145,18 +146,21 @@ const ChatInterface = ({
   };
 
   const handleTakeQuiz = () => {
-    if (currentSubtopicName && !isThinking) {
-      setActiveQuizSubtopic(currentSubtopicName);
-      setIsQuizActive(true);
-      setIsZQuizActive(true);
+     if (currentSubtopicName && !isThinking) {
+      const formattedMessages = messages.map((msg) => ({
+        role: msg.sender === "llm" ? "assistant" : "user",
+        content: msg.text,
+      }));
+      handleGenerateQuiz({
+        quizType: 'subtopic',
+        id: currentChat.subtopicId,
+        title: currentSubtopicName,
+        messages: formattedMessages,
+        questionCount: 5,
+      });
     }
   };
 
-  const handleQuizClose = () => {
-    setIsQuizActive(false);
-    setIsZQuizActive(false);
-    setActiveQuizSubtopic("");
-  };
 
   function replaceLatexInline(text) {
     if (!text) return "";
@@ -186,12 +190,12 @@ const ChatInterface = ({
   return (
     <div className="flex flex-col h-full max-h-full overflow-hidden bg-white z-1">
       {/* Add the TextSelectionMenu component here */}
-      {/* {//console.log(topics, currentChat)} */}
-      {/* {//console.log(currentChat)} */}
+      {/* {console.log(topics, currentChat)} */}
+      {/* {console.log(currentChat)} */}
       <TextSelectionMenu
         onAction={handleTextSelectionAction}
         chatContainerRef={chatContainerRef}
-        isQuizActive={isQuizActive}
+        isQuizActive={!!activeQuiz}
         isThinking={isThinking}
       />
 
@@ -208,12 +212,12 @@ const ChatInterface = ({
         </div>
         <h1 className="text-lg font-semibold text-dark-gray truncate px-2">
           {mainTopicName}
-          {currentSubtopicName && isTopicSelected && !isQuizActive ? (
+          {currentSubtopicName && isTopicSelected && !activeQuiz ? (
             <span className="text-blue-400">
-              - {topics.find((t) => t.id === currentChat.topicId).name}
+              - {topics.find((t) => t.id === currentChat.topicId)?.name}
             </span>
-          ) : isQuizActive && activeQuizSubtopic ? (
-            <span className="text-sky-800"> - Quiz: {activeQuizSubtopic}</span>
+          ) : activeQuiz ? (
+            <span className="text-sky-800"> - Quiz: {activeQuiz.title}</span>
           ) : (
             ""
           )}
@@ -443,18 +447,19 @@ const ChatInterface = ({
         <div ref={messagesEndRef} />
       </div>
 
-      {isQuizActive && activeQuizSubtopic && (
+      {activeQuiz && (
         <div className="px-4 md:px-6">
-          <QuizComponent
-            subtopicName={activeQuizSubtopic}
+          <Quiz
+            quizData={activeQuiz.data}
+            title={activeQuiz.title}
             onClose={handleQuizClose}
-            messages={messages}
-            isQuizActive={isQuizActive}
+            onSubmit={(score, selections) => handleQuizSubmit(activeQuiz.id, score, selections)}
+            isQuizActive={!!activeQuiz}
           />
         </div>
       )}
 
-      {isTopicSelected && messages.length > 0 && !isQuizActive && (
+      {isTopicSelected && messages.length > 0 && !activeQuiz && (
         <div className="mb-3 flex flex-wrap gap-2 items-center px-4 md:px-6 z-10">
           <span className="text-sm text-medium-gray mr-1">Quick actions:</span>
           {[
@@ -480,13 +485,13 @@ const ChatInterface = ({
               <action.icon size={14} className="mr-1.5" /> {action.text}
             </button>
           ))}
-          <button
+          {/* <button
             onClick={handleTakeQuiz}
             className="flex items-center text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-full transition-colors hover:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={isThinking || isQuizActive}
+            disabled={isThinking || !!activeQuiz}
           >
             <BookCopy size={14} className="mr-1.5" /> Take Quiz
-          </button>
+          </button> */}
         </div>
       )}
 
@@ -499,13 +504,13 @@ const ChatInterface = ({
               onChange={(e) => setInputValue(e.target.value)}
               onKeyPress={(e) =>
                 e.key === "Enter" &&
-                !isQuizActive &&
+                !activeQuiz &&
                 !isThinking &&
                 handleSend()
               }
               className="flex-1 w-full p-2.5 text-sm border-none focus:ring-0 bg-transparent z-10 placeholder:truncate "
               placeholder={
-                isQuizActive
+                activeQuiz
                   ? "Quiz in progress..."
                   : isTopicSelected
                   ? `Ask about ${currentSubtopicName}...`
@@ -514,7 +519,7 @@ const ChatInterface = ({
               disabled={
                 isThinking ||
                 (!isTopicSelected && messages.length === 0) ||
-                isQuizActive ||
+                !!activeQuiz ||
                 !isTopicSelected
               }
             />
@@ -526,7 +531,7 @@ const ChatInterface = ({
               isThinking ||
               !inputValue.trim() ||
               (!isTopicSelected && messages.length === 0) ||
-              isQuizActive
+              !!activeQuiz
             }
             className="p-2.5 text-white bg-accent rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:bg-medium-gray disabled:cursor-not-allowed transition-colors"
           >
