@@ -329,6 +329,7 @@ function Learn() {
         sender: "llm",
         text: llmReply.message.message,
         thinking: false,
+        image: llmReply.message.image,
       };
 
       if (llmReply.followup.show) {
@@ -417,13 +418,14 @@ function Learn() {
 
     try {
       const llmReply = await getLLMResponse(formattedMessages);
-      // //console.log(llmReply);
+      console.log(llmReply);
 
       const llmResponseMessage = {
         id: Date.now() + 2,
         sender: "llm",
         text: llmReply.message.message,
         thinking: false,
+        image: llmReply.message.image,
       };
 
       if (llmReply.followup.show) {

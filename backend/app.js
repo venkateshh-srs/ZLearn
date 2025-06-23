@@ -4,7 +4,7 @@ import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/ge
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import dotenv from "dotenv";
-
+import axios from "axios";
 // Import your existing Zod schemas
 import courseContentSchema from "./zodSchemas/courseContentSchema.js";
 import QuizSchema from "./zodSchemas/quizSchema.js";
@@ -22,8 +22,7 @@ const port = 1235;
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const modelConfig = {
-    // Using gemini-1.5-flash-latest for a balance of speed and capability
-    model: "gemini-2.0-flash",
+    model: "gemini-2.5-flash",
     safetySettings: [
         { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
         { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -454,11 +453,57 @@ async function getFollowupPrompts(messages) {
     }
 }
 
+
+const fetchDiagramFromPSE = async (query) => {
+    const apiKey = process.env.GOOGLE_API_KEY;
+    const cx = process.env.GOOGLE_CX_ID;
+
+    try {
+        const res = await axios.get("https://www.googleapis.com/customsearch/v1", {
+            params: {
+                key: apiKey,
+                cx,
+                q: query,
+                searchType: "image",
+                num: 1,
+                safe: "high"
+            }
+        });
+        console.log(res.data.items?.[0]?.link);
+        return res.data.items?.[0]?.link || null;
+    } catch (error) {
+        console.error("Image fetch failed:", error);
+        return null;
+    }
+};
+
 // ... (getAnswerResponse, getAIResponse, and Express routes remain unchanged)
+
+
 const getAnswerResponse = async (messages, topic, topics) => {
-    // This function returns free-form text, so no JSON mode needed.
-    // It remains unchanged.
-    const model = genAI.getGenerativeModel(modelConfig);
+    const model = genAI.getGenerativeModel({
+        ...modelConfig,
+     tools: [{
+  functionDeclarations: [
+    {
+      name: "fetch_educational_image",
+      description: "Fetches a relevant educational image or diagram based on a keyword or topic.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "A short keyword like 'heart diagram' or 'photosynthesis image'"
+          }
+        },
+        required: ["query"]
+      }
+    }
+  ]
+}]
+
+    });
+
     const chatHistory = buildGeminiChatHistory(messages);
 
     const topicsNames = topics.map((topic) => topic.name);
@@ -484,6 +529,8 @@ const getAnswerResponse = async (messages, topic, topics) => {
 - Use clear Markdown (headings, bold, lists).
 - Render all mathematical or scientific notations inside LaTeX delimiters.
 - Inline: $E=mc^2$
+- If a diagram or visual aid would help, call the function 'fetch_educational_image' with the proper search term along with response
+- dont give emety message if there is only image is needed for useres querey give msg like "Here is the image for..." some thing like that
 - Block: $$\\text{Zn(s)} + 2\\text{HCl(aq)} \\rightarrow \\text{ZnCl}_2\\text{(aq)} + \\text{H}_2\\text{(g)}$$
 - IMPORTANT: Write dollar amounts as \\$10,000 (double backslash) to prevent math rendering conflicts.
 - Strictly follow these rules. Now, process the user query.`
@@ -494,13 +541,43 @@ const getAnswerResponse = async (messages, topic, topics) => {
         const result = await model.generateContent({
             contents: [systemInstruction, ...chatHistory]
         });
+
         const responseText = result.response.text();
-        return { success: true, message: responseText };
+        // console.log(responseText);
+        console.log(result.response.functionCalls());
+
+        if (result.response.functionCalls() && result.response.functionCalls().length > 0) {
+          console.log("function called");
+          // console.log(result.response.functionCalls());
+
+            const call = result.response.functionCalls()[0];
+            const { query } = call.args;
+            console.log(query);
+            const imageUrl = await fetchDiagramFromPSE(query);
+            // const imageUrl = "https://projects.wojtekmaj.pl/react-lifecycle-methods-diagram/ogimage.png";
+
+            return {
+                success: true,
+                message:responseText,
+                image: imageUrl
+            };
+        }
+
+        return {
+            success: true,
+            message: responseText,
+            image: null
+        };
+
     } catch (error) {
         console.error("Error in getAnswerResponse:", error);
         return { success: false, message: "Error processing your request." };
     }
 };
+
+
+
+
 
 async function getAIResponse(messages, currentTopic, topics) {
   try {
@@ -508,7 +585,7 @@ async function getAIResponse(messages, currentTopic, topics) {
       getAnswerResponse(messages, currentTopic, topics),
       getFollowupPrompts(messages),
     ]);
-
+   console.log(answerResponse);
     return {
       success: true,
       message: answerResponse,

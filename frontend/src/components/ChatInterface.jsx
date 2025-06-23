@@ -364,6 +364,9 @@ const ChatInterface = ({
                       {replaceLatexInline(msg.text)}
                     </ReactMarkdown>
                   )}
+                  {msg.image && (
+                    <img src={msg.image} alt="LLM Image" className="w-full h-auto my-4" />
+                  )}
                 </div>
                 {/* button to toggle raw text and markdown */}
                 {msg.sender === "llm" && (
