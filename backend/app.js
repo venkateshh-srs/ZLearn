@@ -439,13 +439,15 @@ async function getFollowupPrompts(messages) {
 
         const jsonText = result.response.text();
         const jsonData = JSON.parse(jsonText);
+        // console.log(jsonData);
+        // const validation = followupResponseSchema.safeParse(jsonData);
+        // console.log(validation);
+        // if (validation.success) {
+        //   // console.log(validation.data);
+        //     return validation.data;
+        // }
         
-        const validation = followupResponseSchema.safeParse(jsonData);
-        if (validation.success) {
-            return validation.data;
-        }
-        
-        return { show: false, prompts: [] };
+        return jsonData;
 
     } catch (error) {
         console.error("Error generating follow-up prompts:", error);
