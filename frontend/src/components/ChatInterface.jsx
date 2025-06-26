@@ -70,10 +70,18 @@ const ChatInterface = ({
   };
   
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messages.length > 0) {
+      console.log(messageRefs.current);
+      const lastMessageElement = messageRefs.current[messages[messages.length - 1].id];
+      console.log(lastMessageElement);
+      if (lastMessageElement) {
+        lastMessageElement.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
   };
-
-  // useEffect(scrollToBottom, [messages, isQuizActive]);
+  
+ 
+  useEffect(scrollToBottom, [messages, activeQuiz]);
 
   useEffect(() => {
     if (scrollToMessageId && messageRefs.current[scrollToMessageId]) {
@@ -177,14 +185,15 @@ const ChatInterface = ({
       const cleanedInner = inner.trim();
       return `$${cleanedInner}$`;
     });
-    // text = text.replace(
-    //   /\\text\{[^}]+\}(?:[_^]\{[^}]+\})*/g,
-    //   (match) => `$${match}$`
-    // );
-
-    return text.replace(/\\\((.+?)\\\)/g, (_, inner) => {
-      return `$${inner.trim()}$`;
-    });
+    text = text.replace(
+      /\\text\{[^}]+\}(?:[_^]\{[^}]+\})*/g,
+      (match) => `$${match}$`
+    );
+  
+    return text;
+    // return text.replace(/\\\((.+?)\\\)/g, (_, inner) => {
+    //   return `$${inner.trim()}$`;
+    // });
   }
 
   return (
@@ -281,7 +290,7 @@ const ChatInterface = ({
                     <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans">
                       {msg.text}
                     </pre>
-                  ) : (
+                  ) : msg.sender === "llm" ? (
                     <ReactMarkdown
                       remarkPlugins={[remarkMath, remarkGfm]}
                       rehypePlugins={[rehypeKatex]}
@@ -363,6 +372,8 @@ const ChatInterface = ({
                     >
                       {replaceLatexInline(msg.text)}
                     </ReactMarkdown>
+                  ) : (
+                    <p>{msg.text}</p>
                   )}
                   {msg.image && (
                     <img src={msg.image} alt="LLM Image" className="w-full h-auto my-4" />

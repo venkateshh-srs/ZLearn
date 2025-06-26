@@ -422,7 +422,7 @@ async function getFollowupPrompts(messages) {
         }
     });
 
-    const chatHistory = buildGeminiChatHistory(messages);
+    // const chatHistory = buildGeminiChatHistory(messages);
 
     const prompt = `You are an expert educational follow-up prompt generator. Your goal is to create logical, reasoning-based follow-up questions (8-15 words).
     
@@ -434,7 +434,7 @@ async function getFollowupPrompts(messages) {
 
     try {
         const result = await model.generateContent({
-            contents: [...chatHistory, { role: 'user', parts: [{ text: prompt }] }],
+            contents: [...messages, { role: 'user', parts: [{ text: prompt }] }],
         });
 
         const jsonText = result.response.text();
@@ -482,14 +482,15 @@ const fetchDiagramFromPSE = async (query) => {
 // ... (getAnswerResponse, getAIResponse, and Express routes remain unchanged)
 
 
-const getAnswerResponse = async (messages, topic, topics) => {
+const getAnswerResponse = async (messages, topic, topics, customPrompt) => {
+  // console.log(messages);
     const model = genAI.getGenerativeModel({
         ...modelConfig,
      tools: [{
   functionDeclarations: [
     {
-      name: "fetch_educational_image",
-      description: "Fetches a relevant educational image or diagram based on a keyword or topic.",
+     name: "fetch_educational_image",
+description: `Fetches a relevant educational image or diagram based on a keyword`,
       parameters: {
         type: "object",
         properties: {
@@ -506,47 +507,78 @@ const getAnswerResponse = async (messages, topic, topics) => {
 
     });
 
-    const chatHistory = buildGeminiChatHistory(messages);
 
-    const topicsNames = topics.map((topic) => topic.name);
-    const allSubtopicsNames = getAllSubtopicNames(topics);
 
-    const systemInstruction = {
-        role: "model",
-        parts: [{
-            text: `You are a helpful assistant given the following context:
-- A **current topic**: "${topic}"
-- A **list of topics**: ${topicsNames.join(", ")}
-- A **list of all subtopics**: ${allSubtopicsNames.join(", ")}
+    const topicsNames = topics.map((topic) => topic.name).join(", ");
+    const allSubtopicsNames = getAllSubtopicNames(topics).join(", ");
+    // console.log("topicsNames: " , topicsNames);
+    // console.log("allSubtopicsNames: " , allSubtopicsNames);
+    // console.log("customPrompt: " , customPrompt);
+    // If systemInstructionText contains {{sometext}}, replace with ${sometext}
+    // This allows users to use {{variable}} in their custom prompt and have it interpolated with JS variables
+    let promptWithTemplate = customPrompt;
+    if (customPrompt) {
+      promptWithTemplate = customPrompt.replace(/{{\s*(\w+)\s*}}/g, (_, v) => {
+        if (v === "topicsNames") return topicsNames;
+        if (v === "allSubtopicsNames") return allSubtopicsNames;
+        if (v === "topic") return topic;
+        // fallback: keep as is
+        return `\${${v}}`;
+      });
+      
+    }
+    // console.log("promptWithTemplate: " , promptWithTemplate);
+const systemInstructionText = promptWithTemplate.trim().length > 0 ? promptWithTemplate : `You are a helpful assistant given the following context:
+- A **current topic**: ${topic}
+- A **list of topics**: ${topicsNames}
+- A **list of all subtopics**: ${allSubtopicsNames}
 
-### 🔍 Relevance Rules
+### Relevance Rules
 1.  **Respond if any of these are true**:
     - The query relates to the current topic, any topic/subtopic in the lists, or the conversation history.
     - The user selected text and asked for elaboration, an example, or an analogy.
     - Provide an example whenever possible, especially for topics in the "all subtopics" list.
     - Be flexible; if the query is generally related, respond to it.
-2.  **Only if none of the above apply**, reply with the exact text: "This is not related to the topic: ${topic}."
+2.  **Only if none of the above apply**, reply with the exact text: "This is not related to the topic: ${topic}.".
+3. MOST IMPORTANT: Only generate images for this topic: ${topic} or related to this topic else reply with the exact text: "This is not related to the topic: ${topic}.".
 
-### 🧾 Output Formatting Guidelines
+### Output Formatting Guidelines
 - Use clear Markdown (headings, bold, lists).
 - Render all mathematical or scientific notations inside LaTeX delimiters.
 - Inline: $E=mc^2$
-- If a diagram or visual aid would help, call the function 'fetch_educational_image' with the proper search term along with response
-- dont give emety message if there is only image is needed for useres querey give msg like "Here is the image for..." some thing like that
-- Block: $$\\text{Zn(s)} + 2\\text{HCl(aq)} \\rightarrow \\text{ZnCl}_2\\text{(aq)} + \\text{H}_2\\text{(g)}$$
-- IMPORTANT: Write dollar amounts as \\$10,000 (double backslash) to prevent math rendering conflicts.
-- Strictly follow these rules. Now, process the user query.`
+- Block: 
+$$
+h'(x) = \\lim_{\\Delta x \\to 0} \\frac{f(x + \\Delta x)g(x) - f(x)g(x + \\Delta x)}{\\Delta x}
+$$
+
+- IMPORTANT: **When there is currency in the query, wrap in text{}, like this**: $\\text{\$10,000}$
+
+### Image Generation Guidelines
+
+1. **Purpose:** Use visuals to enhance learning, especially for topics where diagrams make understanding significantly easier.
+
+2. **When to call "fetch_educational_image" :**
+   -If visual aid heps user to understand the current query call the function otherwise dont.Always give importance for explaining things indetail along with examples if possible then focus on image/diagram.
+
+**Summary:**  
+Don't wait for the user to ask. Be proactive and thoughtful. If the concept feels visual in nature, provide a diagram **with context**.
+Strictly follow all of the above rules. Now, process the user query.`;
+// console.log("systemInstructionText: " , systemInstructionText);
+    const systemInstruction = {
+        role: "model",
+        parts: [{
+           text: systemInstructionText
         }]
     };
 
     try {
         const result = await model.generateContent({
-            contents: [systemInstruction, ...chatHistory]
+            contents: [systemInstruction, ...messages]
         });
 
         const responseText = result.response.text();
-        // console.log(responseText);
-        console.log(result.response.functionCalls());
+        // console.log("responseText: " , responseText);
+        // console.log(result.response.functionCalls());
 
         if (result.response.functionCalls() && result.response.functionCalls().length > 0) {
           console.log("function called");
@@ -554,21 +586,44 @@ const getAnswerResponse = async (messages, topic, topics) => {
 
             const call = result.response.functionCalls()[0];
             const { query } = call.args;
-            console.log(query);
+            console.log("Function Query: " , query);
             const imageUrl = await fetchDiagramFromPSE(query);
             // const imageUrl = "https://projects.wojtekmaj.pl/react-lifecycle-methods-diagram/ogimage.png";
+               const imageContext=[{
+              role: "model",
+              parts:[{
+               functionCall: {
+                name: "fetch_educational_image",
+                args: {
+                  query: query
+                }
+               }
+              }]
+            },{
+              role: "function",
+              parts:[{
+                functionResponse: { 
+                  name: "fetch_educational_image",
+                  response:{
+                    content: imageUrl
+                  }
+                }
+              }]
+            }];
 
             return {
                 success: true,
                 message:responseText,
-                image: imageUrl
+                image: imageUrl,
+                imageContext: imageContext
             };
         }
 
         return {
             success: true,
             message: responseText,
-            image: null
+            image: null,
+            imageContext: null
         };
 
     } catch (error) {
@@ -581,13 +636,13 @@ const getAnswerResponse = async (messages, topic, topics) => {
 
 
 
-async function getAIResponse(messages, currentTopic, topics) {
+async function getAIResponse(messages, currentTopic, topics, customPrompt) {
   try {
     const [answerResponse, followupResponse] = await Promise.all([
-      getAnswerResponse(messages, currentTopic, topics),
+      getAnswerResponse(messages, currentTopic, topics, customPrompt),
       getFollowupPrompts(messages),
     ]);
-   console.log(answerResponse);
+  //  console.log(answerResponse);
     return {
       success: true,
       message: answerResponse,
@@ -622,12 +677,12 @@ app.post("/generate-course", async (req, res) => {
 
 app.post("/chat", async (req, res) => {
     // ... same as before
-    const { formattedMessages, currentTopicName, topics } = req.body;
+    const { formattedMessages, currentTopicName, topics, customPrompt } = req.body;
     if (!formattedMessages || !currentTopicName || !topics) {
         return res.status(400).json({ success: false, message: "Missing required fields in request body." });
     }
 
-    const result = await getAIResponse(formattedMessages, currentTopicName, topics);
+    const result = await getAIResponse(formattedMessages, currentTopicName, topics, customPrompt);
 
     if (result.success) {
         let followupToSend = result.followup;
@@ -668,7 +723,7 @@ app.post("/generate-quiz", async (req, res) => {
 
     const response = await generateQuiz(quizConfig);
     if (response.success) {
-      console.log(response.data);
+      // console.log(response.data);
       res.status(200).json({ success: true, data: response.data });
     } else {
         res.status(500).json(response);

@@ -234,6 +234,7 @@ function Learn() {
     // await new Promise(resolve => setTimeout(resolve, 2000));
     // setCurrentStream("");
     // await streamLLMResponse(formattedMessages);
+    const customPrompt = localStorage.getItem("customPrompt");
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal; 
     try {
@@ -246,6 +247,7 @@ function Learn() {
           formattedMessages,
           currentTopicName, // extra field
           topics,
+          customPrompt,
         }),
         signal,
       });
@@ -317,10 +319,28 @@ function Learn() {
     const chatContextForApi = [...previousMessages, userMessage].filter(
       (msg) => msg.sender === "user" || (msg.sender === "llm" && !msg.thinking)
     );
-    const formattedMessages = chatContextForApi.map((msg) => ({
-      role: msg.sender === "llm" ? "assistant" : "user",
-      content: msg.text,
-    }));
+    const formattedMessages = [];
+     chatContextForApi.forEach((msg) => {
+      if (msg.sender === 'user') {
+      formattedMessages.push({
+        role: 'user',
+        parts: [{ text: msg.text }]
+      });
+    } else if (msg.sender === 'llm') {
+
+          // Add the main LLM response
+      formattedMessages.push({
+        role: 'model',
+        parts: [{ text: msg.text }]
+      });
+      // Add image context if it exists
+      if (msg.imageContext && msg.imageContext.length > 0) {
+        formattedMessages.push(...msg.imageContext);
+      }
+      
+  
+    }
+  });
 
     try {
       const llmReply = await getLLMResponse(formattedMessages);
@@ -330,6 +350,7 @@ function Learn() {
         text: llmReply.message.message,
         thinking: false,
         image: llmReply.message.image,
+        imageContext: llmReply.message.imageContext,
       };
 
       if (llmReply.followup.show) {
@@ -404,15 +425,29 @@ function Learn() {
       (msg) => msg.sender === "user" || (msg.sender === "llm" && !msg.thinking)
     );
 
-    const formattedMessages = chatContextForApi.map((msg) => ({
-      role: msg.sender === "llm" ? "assistant" : "user",
-      content: msg.text,
-    }));
+    const formattedMessages = []
+    chatContextForApi.forEach((msg) => {
+      if (msg.sender === 'user') {
+        formattedMessages.push({
+          role: 'user',
+          parts: [{ text: msg.text }]
+        });
+      } else if (msg.sender === 'llm') {
+          formattedMessages.push({
+          role: 'model',
+          parts: [{ text: msg.text }]
+        });
+        if (msg.imageContext && msg.imageContext.length > 0) {
+          formattedMessages.push(...msg.imageContext);
+        }
+      
+      }
+    });
 
     if (quickAction && subtopicName) {
       formattedMessages.push({
         role: "user",
-        content: `Regarding "${subtopicName}", can you ${quickAction} it?`,
+        parts: [{ text: `Regarding "${subtopicName}", can you ${quickAction} it?` }]
       });
     }
 
@@ -426,6 +461,7 @@ function Learn() {
         text: llmReply.message.message,
         thinking: false,
         image: llmReply.message.image,
+        imageContext: llmReply.message.imageContext,
       };
 
       if (llmReply.followup.show) {

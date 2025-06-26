@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   BookOpen,
@@ -9,9 +9,11 @@ import {
   CheckCircle,
   BrainCircuit,
   Loader,
-  ChevronUp
+  ChevronUp,
+  Pencil,
+  X
 } from "lucide-react";
-
+import customPrompt from "../data/customPrompt";
 const QuizActions = ({
   topic,
   quizId,
@@ -203,6 +205,69 @@ const SubtopicItem = ({
   );
 };
 
+const EditLLMPrompt = ({setIsEditingPrompt, isEditingPrompt}) => {
+  const navigate = useNavigate();
+  const [prompt, setPrompt] = useState(customPrompt);
+  useEffect(() => {
+    const savedPrompt = localStorage.getItem("customPrompt");
+    if (savedPrompt) {
+      setPrompt(savedPrompt);
+    }
+  }, []);
+  // useEffect(() => {
+  // console.log("prompt: " , prompt);
+  //  localStorage.setItem("customPrompt", prompt);
+  // }, []);
+  const handleSave = () => {
+    localStorage.setItem("customPrompt", prompt);
+    setIsEditingPrompt(false);
+  };
+  return (
+   <>
+   {/* A modal with text area and a save button and a close button */}
+   <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+     <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-scroll">
+       <div className="p-6 border-b border-gray-200">
+         <h2 className="text-xl font-semibold text-gray-800">Edit LLM Prompt</h2>
+        
+       </div>
+       
+       <div className="p-6">
+         <textarea 
+           className="w-full resize-none border border-gray-400 rounded-lg p-4 text-sm transition-colors duration-200"
+           rows={20}
+           value={prompt} 
+           onChange={(e) => setPrompt(e.target.value)} 
+           placeholder="Enter your custom prompt here"
+         />
+       </div>
+       {/* reset button */}
+       <div className="flex justify-start mb-4">
+         <button className="text-gray-500 hover:text-gray-800 bg-gray-100 px-4 py-2 rounded-lg text-sm font-medium" onClick={() => setPrompt(customPrompt)}>
+           Reset Prompt
+         </button>
+       </div>
+       
+       <div className="flex gap-3 p-6 bg-gray-50 border-t border-gray-200">
+         <button 
+           className="flex-1 bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200"
+            onClick={handleSave}
+         >
+           Save Changes
+         </button>
+         <button 
+           className="flex-1 bg-gray-200 text-gray-800 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors duration-200"
+           onClick={() => setIsEditingPrompt(false)}
+         >
+           Cancel
+         </button>
+       </div>
+     </div>
+   </div>
+   </>
+  );
+};
+
 const Sidebar = ({
   isOpen,
   toggleSidebar,
@@ -225,7 +290,7 @@ const Sidebar = ({
 }) => {
   const [openTopicIds, setOpenTopicIds] = useState(new Set([]));
   const navigate = useNavigate();
-
+  const [isEditingPrompt, setIsEditingPrompt] = useState(false);
   const toggleAccordion = (id) => {
     if (isThinking) return;
     setOpenTopicIds((prev) => {
@@ -263,10 +328,10 @@ const Sidebar = ({
         } md:relative md:translate-x-0 transition-transform duration-300 ease-in-out border-r border-gray-200 shadow-lg`}
       >
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2 gap-2 cursor-pointer">
+          <div className="flex items-center space-x-2 gap-2">
             <BookOpen
-              size={34}
-              className="text-blue-500"
+              size={30}
+              className="text-blue-500 flex-shrink-0 cursor-pointer"
               onClick={() => navigate("/")}
             />
             <p className="text-lg font-semibold text-gray-800">
@@ -371,9 +436,21 @@ const Sidebar = ({
                 activeQuiz={activeQuiz}
               />
             </div>
+            
+          </div>
+          <div className="w-full mt-4 pt-4  flex items-center justify-start">
+            {/* edit icon */}
+            <div className="flex items-center gap-1">
+              <button className="text-left px-3 py-1.5 rounded-md hover:bg-gray-100 flex items-center gap-2" onClick={() => setIsEditingPrompt(true)}>
+                <Pencil size={16} className="text-gray-500" />
+                Edit Prompt
+              </button >
+             
+            </div>
           </div>
         </nav>
       </div>
+      {isEditingPrompt && <EditLLMPrompt setIsEditingPrompt={setIsEditingPrompt} isEditingPrompt={isEditingPrompt} />}
     </>
   );
 };
