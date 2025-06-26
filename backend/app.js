@@ -528,7 +528,7 @@ description: `Fetches a relevant educational image or diagram based on a keyword
       
     }
     // console.log("promptWithTemplate: " , promptWithTemplate);
-const systemInstructionText = promptWithTemplate.trim().length > 0 ? promptWithTemplate : `You are a helpful assistant given the following context:
+const systemInstructionText = promptWithTemplate ? promptWithTemplate : `You are a helpful assistant given the following context:
 - A **current topic**: ${topic}
 - A **list of topics**: ${topicsNames}
 - A **list of all subtopics**: ${allSubtopicsNames}
@@ -551,7 +551,7 @@ $$
 h'(x) = \\lim_{\\Delta x \\to 0} \\frac{f(x + \\Delta x)g(x) - f(x)g(x + \\Delta x)}{\\Delta x}
 $$
 
-- IMPORTANT: **When there is currency in the query, wrap in text{}, like this**: $\\text{\$10,000}$
+- IMPORTANT: **When there is currency give like this**: $\\text{\$10,000}$
 
 ### Image Generation Guidelines
 

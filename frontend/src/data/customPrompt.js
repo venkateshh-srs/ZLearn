@@ -22,7 +22,7 @@ $$
 h'(x) = \\lim_{\\Delta x \\to 0} \\frac{f(x + \\Delta x)g(x) - f(x)g(x + \\Delta x)}{\\Delta x}
 $$
 
-- IMPORTANT: **When there is currency in the query, wrap in text{}, like this**: $\\text{\$10,000}$
+- IMPORTANT: **When there is currency give like this**: $\\text{\$10,000}$
 
 ### Image Generation Guidelines
 1. **Purpose:** Use visuals to enhance learning, especially for topics where diagrams make understanding significantly easier.
