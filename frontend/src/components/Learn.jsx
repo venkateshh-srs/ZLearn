@@ -32,6 +32,11 @@ function Learn() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [relatedTopicsByThread, setRelatedTopicsByThread] = useState({});
   const [stoppedThinking, setStoppedThinking] = useState(false);
+  const [isFetchingImage, setIsFetchingImage] = useState({
+    loading: false,
+    messageId: null,
+  });
+
   // Load course data on mount or location change
   useEffect(() => {
     const newCourseData = location.state?.data; // From TopicInput
@@ -106,6 +111,83 @@ function Learn() {
       navigate("/");
     }
   }, [location.state, navigate]);
+
+  const handleGetAnotherImage = async (messageId) => {
+    setIsFetchingImage({ loading: true, messageId });
+    const currentMessages = chatThreads[currentChat.topicId] || [];
+    const messageIndex = currentMessages.findIndex((m) => m.id === messageId);
+    if (messageIndex === -1) {
+      console.error("Message not found");
+      setIsFetchingImage({ loading: false, messageId: null });
+      return;
+    }
+
+    const messagesForContext = [];
+    for (const msg of currentMessages) {
+      if (msg.sender === "user") {
+        messagesForContext.push({
+          role: "user",
+          parts: [{ text: msg.text }],
+        });
+      } else if (msg.sender === "llm") {
+        messagesForContext.push({
+          role: "model",
+          parts: [{ text: msg.text }],
+        });
+
+        if (msg.imageContext && msg.imageContext.length > 0) {
+          messagesForContext.push(...msg.imageContext);
+        }
+      }
+
+      if (msg.id === messageId) {
+        break; // Stop iterating once we reach the target message
+      }
+    }
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL}/get-another-image`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ messages: messagesForContext }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const { imageUrl } = await response.json();
+
+      setChatThreads((prevChatThreads) => {
+        const newChatThreads = { ...prevChatThreads };
+        const thread = [...(newChatThreads[currentChat.topicId] || [])];
+        const msgIndex = thread.findIndex((m) => m.id === messageId);
+
+        if (msgIndex !== -1) {
+          const updatedMessage = { ...thread[msgIndex] };
+          if (updatedMessage.images) {
+            updatedMessage.images = [...updatedMessage.images, imageUrl];
+          } else if (updatedMessage.image) {
+            updatedMessage.images = [updatedMessage.image, imageUrl];
+            delete updatedMessage.image;
+          }
+          thread[msgIndex] = updatedMessage;
+          newChatThreads[currentChat.topicId] = thread;
+        }
+        return newChatThreads;
+      });
+    } catch (error) {
+      console.error("Error getting another image:", error);
+      // You might want to set an error message state here
+    } finally {
+      setIsFetchingImage({ loading: false, messageId: null });
+    }
+  };
 
   // Save course data on any change
   useEffect(() => {
@@ -666,6 +748,11 @@ function Learn() {
           stoppedThinking={stoppedThinking}
           errorMessage={errorMessage}
           setErrorMessage={setErrorMessage}
+          introduction={
+            (topics[0] && topics[0].subtopics[0].introduction) || ""
+          }
+          onGetAnotherImage={handleGetAnotherImage}
+          isFetchingImage={isFetchingImage}
         />
       </div>
     </div>

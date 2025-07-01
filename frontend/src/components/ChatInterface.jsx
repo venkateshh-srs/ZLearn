@@ -7,7 +7,7 @@ import "katex/dist/katex.min.css";
 import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
 import { useNavigate } from "react-router-dom";
-import { XSquare } from "lucide-react";
+import { XSquare, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   Send,
   HelpCircle,
@@ -50,6 +50,8 @@ const ChatInterface = ({
   errorMessage,
   setErrorMessage,
   introduction,
+  onGetAnotherImage,
+  isFetchingImage,
 }) => {
   //console.log("rendered");
 
@@ -57,8 +59,11 @@ const ChatInterface = ({
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null); // Create a ref for the chat container
   const messageRefs = useRef({});
+  const imageRefs = useRef({});
+  const textAreaRef = useRef(null);
   const navigate = useNavigate();
   const [showRawText, setShowRawText] = useState(false);
+  const [imageCarousels, setImageCarousels] = useState({}); // { messageId: currentIndex }
   const Spinner = () => (
     <Loader size={16} className="text-dark-gray animate-spin" />
   );
@@ -69,6 +74,15 @@ const ChatInterface = ({
     onSendMessage(prompt);
   };
   
+  function usePrevious(value) {
+    const ref = useRef();
+    useEffect(() => {
+      ref.current = value;
+    });
+    return ref.current;
+  }
+  const prevMessages = usePrevious(messages);
+
   const scrollToBottom = () => {
     if (messages.length > 0) {
       console.log(messageRefs.current);
@@ -81,7 +95,12 @@ const ChatInterface = ({
   };
   
  
-  useEffect(scrollToBottom, [messages, activeQuiz]);
+  useEffect(() => {
+    if (prevMessages && messages.length === prevMessages.length) {
+      return;
+    }
+    scrollToBottom();
+  }, [messages, activeQuiz]);
 
   useEffect(() => {
     if (scrollToMessageId && messageRefs.current[scrollToMessageId]) {
@@ -93,11 +112,74 @@ const ChatInterface = ({
     }
   }, [scrollToMessageId, setScrollToMessageId]);
 
+  // useEffect(() => {
+  //   // show recently added image which is added to the current message
+  //   const lastMessage = messages[messages.length - 1];
+  //   if (lastMessage?.images && lastMessage?.images.length > 0) {
+  //     const lastImage = lastMessage.images[lastMessage.images.length - 1];
+  //     const lastImageRef = imageRefs.current[lastMessage.id]?.[lastMessage.images.length - 1];
+  //     if (lastImageRef) {
+  //       lastImageRef.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  //     }
+  //   }
+ 
+  // }, [messages]);
+
   const handleSend = () => {
     if (inputValue.trim() && !isThinking) {
       onSendMessage(inputValue.trim());
       setInputValue("");
+      if (textAreaRef.current) {
+    textAreaRef.current.style.height = "auto";
+  }
     }
+  };
+
+  const handleCarouselPrev = (message) => {
+    const messageId = message.id;
+    const numImages = message.images.length;
+    const prevIndex =
+      (imageCarousels[messageId] || 0) === 0
+        ? numImages - 1
+        : (imageCarousels[messageId] || 0) - 1;
+
+    const imageToScrollTo = imageRefs.current[messageId]?.[prevIndex];
+    if (imageToScrollTo) {
+      imageToScrollTo.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "center",
+      });
+    }
+
+    setImageCarousels((prev) => ({
+      ...prev,
+      [messageId]: prevIndex,
+    }));
+  };
+
+  const handleCarouselNext = (message) => {
+    const messageId = message.id;
+    const numImages = message.images.length;
+    const nextIndex = ((imageCarousels[messageId] || 0) + 1) % numImages;
+
+    const imageToScrollTo = imageRefs.current[messageId]?.[nextIndex];
+    if (imageToScrollTo) {
+      imageToScrollTo.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "center",
+      });
+    }
+
+    setImageCarousels((prev) => ({
+      ...prev,
+      [messageId]: nextIndex,
+    }));
+  };
+
+  const handleGetAnotherImage = (messageId) => {
+    onGetAnotherImage(messageId);
   };
 
   const handleQuickAction = (actionType, actionText) => {
@@ -155,16 +237,34 @@ const ChatInterface = ({
 
   const handleTakeQuiz = () => {
      if (currentSubtopicName && !isThinking) {
-      const formattedMessages = messages.map((msg) => ({
-        role: msg.sender === "llm" ? "assistant" : "user",
-        content: msg.text,
-      }));
+       const formattedMessages = [];
+     messages.forEach((msg) => {
+      if (msg.sender === 'user') {
+      formattedMessages.push({
+        role: 'user',
+        parts: [{ text: msg.text }]
+      });
+    } else if (msg.sender === 'llm') {
+
+          // Add the main LLM response
+      formattedMessages.push({
+        role: 'model',
+        parts: [{ text: msg.text }]
+      });
+      // Add image context if it exists
+      if (msg.images && msg.images.length > 0) {
+        formattedMessages.push(...msg.images);
+      }
+      
+  
+    }
+  });
       handleGenerateQuiz({
         quizType: 'subtopic',
         id: currentChat.subtopicId,
         title: currentSubtopicName,
         messages: formattedMessages,
-        questionCount: 5,
+        questionCount: 10,
       });
     }
   };
@@ -220,15 +320,17 @@ const ChatInterface = ({
           </button>
         </div>
         <h1 className="text-lg font-semibold text-dark-gray truncate px-2">
-          {mainTopicName}
+         
           {currentSubtopicName && isTopicSelected && !activeQuiz ? (
-            <span className="text-blue-400">
-              - {topics.find((t) => t.id === currentChat.topicId)?.name}
+            <span className="text-blue-500">
+              {topics.find((t) => t.id === currentChat.topicId)?.name}
             </span>
           ) : activeQuiz ? (
-            <span className="text-sky-800"> - Quiz: {activeQuiz.title}</span>
+            <span className="text-sky-700"> Quiz: {activeQuiz.title}</span>
           ) : (
-            ""
+            <span className="text-black">
+              {mainTopicName}
+            </span>
           )}
         </h1>
         <button
@@ -256,7 +358,7 @@ const ChatInterface = ({
             } ${msg.sender === "system" ? "w-full justify-center" : ""}`}
           >
             <div
-              className={`max-w-lg sm:max-w-lg md:max-w-md lg:max-w-lg xl:max-w-2xl p-3 rounded-lg shadow overflow-hidden ${
+              className={`max-w-lg sm:max-w-md md:max-w-md lg:max-w-lg xl:max-w-2xl p-3 rounded-lg shadow overflow-hidden ${
                 msg.sender === "user"
                   ? "bg-message-user text-gray-900 rounded-br-none border border-sky-100"
                   : msg.sender === "llm"
@@ -375,9 +477,94 @@ const ChatInterface = ({
                   ) : (
                     <p>{msg.text}</p>
                   )}
-                  {msg.image && (
-                    <img src={msg.image} alt="LLM Image" className="w-full h-auto my-4" />
-                  )}
+                  <div className="relative">
+                    {msg.images && msg.images.length > 0 ? (
+                      <div className="relative group">
+                        <div className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth scrollbar-hide rounded-lg gap-30">
+                          {msg.images.map((imgSrc, index) => (
+                            <img
+                              key={index}
+                              ref={(el) => {
+                                if (!imageRefs.current[msg.id])
+                                  imageRefs.current[msg.id] = [];
+                                imageRefs.current[msg.id][index] = el;
+                              }}
+                              src={imgSrc}
+                              alt={`LLM Generated Content ${index + 1}`}
+                              // adjust height accroing to width to maintain aspect 
+                              className="w-full h-auto my-4 object-contain"
+                            />
+                          ))}
+                        </div>
+                        {msg.images.length > 1 && (
+                          <>
+                            {/* Desktop/Tablet: ChevronLeft/ChevronRight */}
+                            <div className="absolute inset-0 hidden sm:flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg pointer-events-none bg-black/5">
+                              <button
+                                onClick={() => handleCarouselPrev(msg)}
+                                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 focus:outline-none pointer-events-auto cursor-pointer"
+                              >
+                                <ChevronLeft size={20} />
+                              </button>
+                              <button
+                                onClick={() => handleCarouselNext(msg)}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 focus:outline-none pointer-events-auto cursor-pointer"
+                              >
+                                <ChevronRight size={20} />
+                              </button>
+                            </div>
+                            {/* Mobile: Larger, always visible chevrons for easier touch */}
+                            <div className="absolute inset-0 flex sm:hidden items-center justify-between pointer-events-none">
+                              <button
+                                onClick={() => handleCarouselPrev(msg)}
+                                className="ml-1 bg-black/10 text-white p-2 rounded-full pointer-events-auto active:bg-black/50"
+                                style={{ zIndex: 2 }}
+                                aria-label="Previous image"
+                              >
+                                <ChevronLeft size={28} />
+                              </button>
+                              <button
+                                onClick={() => handleCarouselNext(msg)}
+                                className="mr-1 bg-black/10 text-white p-2 rounded-full pointer-events-auto active:bg-black/50"
+                                style={{ zIndex: 2 }}
+                                aria-label="Next image"
+                              >
+                                <ChevronRight size={28} />
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ) : msg.image ? (
+                      <img
+                        src={msg.image}
+                        alt="LLM Image"
+                        className="w-full h-auto my-4 object-contain"
+                      />
+                    ) : null}
+
+                    {isFetchingImage.loading &&
+                      isFetchingImage.messageId === msg.id && (
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center rounded-lg">
+                          <span className="text-sm font-medium text-white">Adding new image...</span>
+                         <Loader className="animate-spin text-white" size={20}   />
+                        </div>
+                      )}
+                  </div>
+                  <div className="flex justify-end">
+                    {(msg.image || (msg.images && msg.images.length > 0)) && (
+                      <button
+                        onClick={() => handleGetAnotherImage(msg.id)}
+                        disabled={isFetchingImage.loading}
+                        className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed "
+                      >
+                        {isFetchingImage.loading &&
+                        isFetchingImage.messageId === msg.id
+                          ? "Fetching..."
+                          : "Get another image"}
+                      </button>
+                    )}
+                  </div>
                 </div>
                 {/* button to toggle raw text and markdown */}
                 {msg.sender === "llm" && (
@@ -499,30 +686,32 @@ const ChatInterface = ({
               <action.icon size={14} className="mr-1.5" /> {action.text}
             </button>
           ))}
-          {/* <button
+          <button
             onClick={handleTakeQuiz}
             className="flex items-center text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-full transition-colors hover:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={isThinking || !!activeQuiz}
           >
             <BookCopy size={14} className="mr-1.5" /> Take Quiz
-          </button> */}
+          </button>
         </div>
       )}
 
-      <div className="border-t border-light-gray pt-4 px-4 md:px-6 pb-4 z-10">
-        <div className="flex items-center gap-2 bg-white border border-light-gray rounded-lg shadow-sm">
-          <div className="relative w-full">
-            <input
-              type="text"
+      <div className="pt-4 px-4 md:px-6 pb-4 z-10">
+        <div className="flex items-end gap-1 bg-white rounded-lg ">
+          <div className="w-full border border-gray-300 rounded-md">
+            <textarea
+              ref={textAreaRef}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              onKeyPress={(e) =>
-                e.key === "Enter" &&
-                !activeQuiz &&
-                !isThinking &&
-                handleSend()
-              }
-              className="flex-1 w-full p-2.5 text-sm border-none focus:ring-0 bg-transparent z-10 placeholder:truncate "
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  if (!activeQuiz && !isThinking) {
+                    handleSend();
+                  }
+                }
+              }}
+              className="flex-1 w-full p-3 text-sm border-none z-10 placeholder:truncate resize-none overflow-hidden min-h-[44px] max-h-32 leading-5 rounded-md focus:outline-none"
               placeholder={
                 activeQuiz
                   ? "Quiz in progress..."
@@ -536,6 +725,16 @@ const ChatInterface = ({
                 !!activeQuiz ||
                 !isTopicSelected
               }
+              rows={1}
+              style={{
+                height: 'auto',
+                minHeight: '44px',
+                maxHeight: '128px'
+              }}
+              onInput={(e) => {
+                e.target.style.height = 'auto';
+                e.target.style.height = Math.min(e.target.scrollHeight, 128) + 'px';
+              }}
             />
           </div>
 
@@ -547,13 +746,14 @@ const ChatInterface = ({
               (!isTopicSelected && messages.length === 0) ||
               !!activeQuiz
             }
-            className="p-2.5 text-white bg-accent rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:bg-medium-gray disabled:cursor-not-allowed transition-colors"
+            className="p-3 text-white bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed rounded-lg"
           >
-            <Send size={20} />
+            <Send size={18} />
           </button>
         </div>
       </div>
     </div>
+    
   );
 };
 

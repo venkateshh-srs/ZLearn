@@ -164,7 +164,7 @@ const Quiz = ({ quizData, title, onClose, onSubmit, isQuizActive }) => {
       <div className="p-4 md:p-6 mb-4 bg-white border border-gray-300 rounded-lg shadow-lg text-gray-700 ">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold">
-            Quiz Complete: {title}
+            Quiz Completed Successfully: {title}
           </h2>
           <button
             onClick={onClose}
@@ -338,7 +338,7 @@ const Quiz = ({ quizData, title, onClose, onSubmit, isQuizActive }) => {
                 value={index.toString()}
                 checked={selectedAnswer === index.toString()}
                 onChange={(e) => setSelectedAnswer(e.target.value)}
-                className="form-radio h-4 w-4 focus:ring-blue-500 border-gray-300 hover:cursor-pointer"
+                className="form-radio h-4 w-4 border-gray-300 hover:cursor-pointer"
               />
               <span className="text-sm">
                 <ReactMarkdown
@@ -354,7 +354,7 @@ const Quiz = ({ quizData, title, onClose, onSubmit, isQuizActive }) => {
         <button
           onClick={handleAnswerSubmit}
           disabled={selectedAnswer === ""}
-          className="w-full px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors cursor-pointer"
+          className="w-full px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors cursor-pointer"
         >
           {currentQuestionIndex < questions.length - 1
             ? "Next Question"

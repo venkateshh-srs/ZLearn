@@ -78,6 +78,7 @@ const TextSelectionMenu = ({
 
     const chatContainer = chatContainerRef.current;
     document.addEventListener("mouseup", handleSelection);
+    document.addEventListener("touchend", handleSelection);
     document.addEventListener("mousedown", handleClickOutside);
     if (chatContainer) {
       chatContainer.addEventListener("scroll", handleScroll, true);
@@ -85,6 +86,7 @@ const TextSelectionMenu = ({
 
     return () => {
       document.removeEventListener("mouseup", handleSelection);
+      document.removeEventListener("touchend", handleSelection);
       document.removeEventListener("mousedown", handleClickOutside);
       if (chatContainer) {
         chatContainer.removeEventListener("scroll", handleScroll, true);

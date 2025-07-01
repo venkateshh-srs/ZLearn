@@ -23,9 +23,9 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message }) => {
         <div className="flex gap-4 p-4 bg-gray-50 rounded-b-xl">
           <button
             onClick={onConfirm}
-            className="w-full text-white px-1 py-2 border border-red-500 bg-red-500
+            className="w-full text-white px-1 py-2 border border-red-500 bg-red-600
              rounded-sm text-md font-medium
-            hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400"
+            hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400"
           >
             Yes
           </button>

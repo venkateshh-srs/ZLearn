@@ -250,13 +250,13 @@ const EditLLMPrompt = ({setIsEditingPrompt, isEditingPrompt}) => {
        
        <div className="flex gap-3 p-6 bg-gray-50 border-t border-gray-200">
          <button 
-           className="flex-1 bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200"
+           className="flex-1 bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 focus:outline-none transition-colors duration-200"
             onClick={handleSave}
          >
            Save Changes
          </button>
          <button 
-           className="flex-1 bg-gray-200 text-gray-800 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors duration-200"
+           className="flex-1 bg-gray-200 text-gray-800 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-300 focus:outline-none transition-colors duration-200"
            onClick={() => setIsEditingPrompt(false)}
          >
            Cancel
@@ -289,6 +289,7 @@ const Sidebar = ({
   isGeneratingQuiz,
 }) => {
   const [openTopicIds, setOpenTopicIds] = useState(new Set([]));
+  const [showRegenerateModal, setShowRegenerateModal] = useState(false);
   const navigate = useNavigate();
   const [isEditingPrompt, setIsEditingPrompt] = useState(false);
   const toggleAccordion = (id) => {
@@ -338,25 +339,7 @@ const Sidebar = ({
               {topicName || "My Course"}
             </p>
           </div>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={!isThinking ? onRegenerate : undefined}
-              className={`text-gray-500 hover:text-gray-800 ${
-                isThinking || !!activeQuiz
-                  ? "opacity-50 cursor-not-allowed"
-                  : ""
-              }`}
-              title="Regenerate Topics"
-              disabled={isGenerating || isThinking || !!activeQuiz}
-            >
-              <RefreshCw
-                size={20}
-                className={`transition-transform duration-1000 ${
-                  isGenerating ? "animate-spin" : ""
-                }`}
-              />
-            </button>
-          </div>
+         
         </div>
 
         <div className="w-full">
@@ -436,20 +419,70 @@ const Sidebar = ({
                 activeQuiz={activeQuiz}
               />
             </div>
-            
           </div>
-          <div className="w-full mt-4 pt-4  flex items-center justify-start">
-            {/* edit icon */}
-            <div className="flex items-center gap-1">
-              <button className="text-left px-3 py-1.5 rounded-md hover:bg-gray-100 flex items-center gap-2" onClick={() => setIsEditingPrompt(true)}>
-                <Pencil size={16} className="text-gray-500" />
-                Edit Prompt
-              </button >
-             
-            </div>
-          </div>
+       
         </nav>
+          {/* Fixed bottom actions: Edit Prompt & Regenerate */}
+          <div className="sticky bottom-0 left-0 w-full bg-white z-20 flex flex-col space-y-2 px-4 py-3 border-t border-gray-200">
+            <button
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100 text-gray-700 font-small text-sm transition-colors"
+              onClick={() => setIsEditingPrompt(true)}
+            >
+              <Pencil size={17} className="text-gray-500" />
+              Edit Prompt
+            </button>
+            {showRegenerateModal && (
+              <div className="fixed inset-0 bg-black/15 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
+                  <h3 className="text-lg font-semibold mb-4 text-gray-900 text-center">
+                    Confirm Regeneration
+                  </h3>
+                  <p className="text-gray-600 mb-6 text-center ">
+                    Are you sure?
+                    <br />
+                    The current chats will be deleted.
+                  </p>
+                  <div className="flex gap-3 justify-center">
+                    <button
+                      onClick={() => setShowRegenerateModal(false)}
+                      className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors w-full border border-gray-300 "
+                    >
+                      No
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowRegenerateModal(false);
+                        onRegenerate();
+                      }}
+                      className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-md transition-colors w-full"
+                    >
+                      Yes
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            <button
+              onClick={!isThinking ? () => setShowRegenerateModal(true) : undefined}
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100 text-gray-700 font-small transition-colors text-sm ${
+                isThinking || !!activeQuiz
+                  ? "opacity-50 cursor-not-allowed"
+                  : ""
+              }`}
+              title="Regenerate Topics"
+              disabled={isGenerating || isThinking || !!activeQuiz}
+            >
+              <RefreshCw
+                size={18}
+                className={`transition-transform duration-1000 ${
+                  isGenerating ? "animate-spin" : ""
+                }`}
+              />
+              Regenerate Topics
+            </button>
+          </div>
       </div>
+      
       {isEditingPrompt && <EditLLMPrompt setIsEditingPrompt={setIsEditingPrompt} isEditingPrompt={isEditingPrompt} />}
     </>
   );

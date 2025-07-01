@@ -42,6 +42,8 @@ const buildGeminiChatHistory = (messages) => {
 //generate quiz along with answers
 const generateQuiz = async ({ title, subtopics = [], questionCount = 5, messages = null }) => {
   //console.log(`Generating quiz for topic: ${title}`);
+  console.log("generate quiz");
+  console.log(title,subtopics,questionCount,messages);
   const model = genAI.getGenerativeModel({
       ...modelConfig,
       // Use JSON mode for structured output
@@ -106,9 +108,9 @@ const generateQuiz = async ({ title, subtopics = [], questionCount = 5, messages
       }
   });
 
-  const chatHistory = messages ? buildGeminiChatHistory(messages) : [];
+  const chatHistory = messages ? messages : [];
   const prompt = messages
-        ? `You are a helpful assistant designed to generate quizzes. Based on the provided topic "${title}" and the preceding conversation, create a short quiz with 3-5 questions and answers. Ensure the quiz is relevant to the topic. Output a valid JSON object matching the requested schema.`
+        ? `You are a helpful assistant designed to generate quizzes. Based on the provided topic "${title}" and the preceding conversation, create a short quiz with ${questionCount} questions along with answers. Ensure the quiz is relevant to the topic and the previous conversation. Output a valid JSON object matching the requested schema.`
         : `You are an expert quiz creator. Your task is to generate a comprehensive quiz.
            **Topic:** "${title}"
            **Subtopics to cover:** ${subtopics.join(", ")}
@@ -119,12 +121,11 @@ const generateQuiz = async ({ title, subtopics = [], questionCount = 5, messages
            - Ensure the entire output is a single, valid JSON object that conforms to the schema. Do not include any text or markdown before or after the JSON.
            - Ensure there are exactly 4 options for each question.
            - Ensure the 'correct' field is the 0-based index of the correct answer.`;
-
+console.log(prompt);
   try {
-      const result = await model.generateContent([
-          prompt,
-          ...chatHistory
-      ]);
+      const result = await model.generateContent({
+        contents: [...chatHistory, { role: 'user', parts: [{ text: prompt }] }]  
+      });
       
       const jsonText = result.response.text();
       const jsonData = JSON.parse(jsonText);
@@ -701,6 +702,7 @@ app.post("/chat", async (req, res) => {
 
 app.post("/generate-quiz", async (req, res) => {
     const { quizType, title, subtopics, questionCount, messages } = req.body;
+    console.log(req.body);
 
     if (!quizType || !title) {
         return res.status(400).json({ success: false, message: "Missing quizType or title." });
@@ -739,6 +741,42 @@ app.post("/stream-response", async (req, res) => {
     streamResponse(messages, res);
 });
 
+app.post("/get-another-image", async (req, res) => {
+  const { messages } = req.body;
+
+  if (!messages || !Array.isArray(messages)) {
+    return res.status(400).json({ error: "Invalid messages array" });
+  }
+
+  const model = genAI.getGenerativeModel(modelConfig);
+  const chatHistory = messages;
+  console.log(chatHistory);
+
+  const prompt = `Based on the following conversation history, generate a new, but relevant search query for a diagram or image. The user wants another image that is different from any previous one. Provide only the search query as a string, no extra text.`;
+
+  try {
+       const result = await model.generateContent({
+            contents: [ { role: 'user', parts: [{ text: prompt }] },...chatHistory],
+        });
+    const imageQuery = result.response.text().trim();
+    console.log(imageQuery);
+
+    if (!imageQuery) {
+      return res.status(500).json({ error: "Could not generate an image query." });
+    }
+
+    const imageUrl = await fetchDiagramFromPSE(imageQuery);
+
+    if (!imageUrl) {
+      return res.status(500).json({ error: "Failed to fetch image from external service." });
+    }
+
+    res.json({ imageUrl });
+  } catch (error) {
+    console.error("Error in /get-another-image:", error);
+    res.status(500).json({ error: "An unexpected error occurred." });
+  }
+});
 
 app.listen(port, () => {
   console.log(`Server listening at http://localhost:${port}`);
