@@ -111,6 +111,30 @@ const ChatInterface = ({
       setScrollToMessageId(null);
     }
   }, [scrollToMessageId, setScrollToMessageId]);
+  useEffect(() => {
+  messages.forEach((msg) => {
+    const messageId = msg.id;
+    const numImages = msg.images?.length || 0;
+    const currentIndex = imageCarousels[messageId] || 0;
+
+    // If new image added and not already scrolled to it
+    if (numImages > 0 && currentIndex !== numImages - 1) {
+      const lastImageRef = imageRefs.current[messageId]?.[numImages - 1];
+      if (lastImageRef) {
+        lastImageRef.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+          inline: "center",
+        });
+        setImageCarousels((prev) => ({
+          ...prev,
+          [messageId]: numImages - 1,
+        }));
+      }
+    }
+  });
+}, [messages]); // msgList should contain all messages and their images
+
 
   // useEffect(() => {
   //   // show recently added image which is added to the current message
@@ -151,6 +175,7 @@ const ChatInterface = ({
         inline: "center",
       });
     }
+    console.log("imagecarousel: ",imageCarousels);
 
     setImageCarousels((prev) => ({
       ...prev,
@@ -490,6 +515,7 @@ const ChatInterface = ({
                                 imageRefs.current[msg.id][index] = el;
                               }}
                               src={imgSrc}
+                              loading="lazy"
                               alt={`LLM Generated Content ${index + 1}`}
                               // adjust height accroing to width to maintain aspect 
                               className="w-full h-auto my-4 object-contain"
@@ -542,11 +568,13 @@ const ChatInterface = ({
                         className="w-full h-auto my-4 object-contain"
                       />
                     ) : null}
-
+{/* keet the loader until the imageUrl is completely loaded */}
                     {isFetchingImage.loading &&
                       isFetchingImage.messageId === msg.id && (
                         <div className="absolute inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center rounded-lg">
-                          <span className="text-sm font-medium text-white">Adding new image...</span>
+                          {/* user cannot select this text */}
+
+                          <span className=" text-sm font-medium text-white select-none">Getting new image...</span>
                          <Loader className="animate-spin text-white" size={20}   />
                         </div>
                       )}

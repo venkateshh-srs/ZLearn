@@ -752,7 +752,7 @@ app.post("/get-another-image", async (req, res) => {
   const chatHistory = messages;
   console.log(chatHistory);
 
-  const prompt = `Based on the following conversation history, generate a new, but relevant search query for a diagram or image. The user wants another image that is different from any previous one. Provide only the search query as a string, no extra text.`;
+  const prompt = `Based on the following conversation history, generate a new, but relevant search query for a diagram or image. The user wants another image that is different from any previous one. Provide only the search query which is then given to google search engine to get image. So give the query as a string, no extra text. Make sure the query should be different from the previous one's in the chat history but should be relevant to the topic.`;
 
   try {
        const result = await model.generateContent({
