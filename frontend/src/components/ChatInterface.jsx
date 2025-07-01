@@ -504,61 +504,56 @@ const ChatInterface = ({
                   )}
                   <div className="relative">
                     {msg.images && msg.images.length > 0 ? (
-                      <div className="relative group">
-                        <div className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth scrollbar-hide rounded-lg gap-30">
-                          {msg.images.map((imgSrc, index) => (
-                            <img
-                              key={index}
-                              ref={(el) => {
-                                if (!imageRefs.current[msg.id])
-                                  imageRefs.current[msg.id] = [];
-                                imageRefs.current[msg.id][index] = el;
-                              }}
-                              src={imgSrc}
-                              loading="lazy"
-                              alt={`LLM Generated Content ${index + 1}`}
-                              // adjust height accroing to width to maintain aspect 
-                              className="w-full h-auto my-4 object-contain"
-                            />
-                          ))}
+                      <div className="relative group flex flex-col items-center">
+                        <div className="w-full flex justify-center overflow-hidden">
+                          {/* 
+                            We'll use a wrapper div with relative positioning and fixed height,
+                            and absolutely position the images, fading them in/out with opacity and transition.
+                          */}
+                          <div className="relative w-full" style={{ minHeight: "200px" }}>
+                            {msg.images.map((imgUrl, idx) => (
+                              <img
+                                key={imgUrl + idx}
+                                ref={(el) => {
+                                  if (!imageRefs.current[msg.id])
+                                    imageRefs.current[msg.id] = [];
+                                  imageRefs.current[msg.id][idx] = el;
+                                }}
+                                src={imgUrl}
+                                loading="lazy"
+                                alt={`LLM Generated Content ${idx + 1}`}
+                                className={`w-full h-auto my-4 object-contain absolute left-0 top-0 transition-opacity duration-500 ease-in-out
+                                  ${((imageCarousels[msg.id] || 0) === idx) ? "opacity-100 z-10 relative static" : "opacity-0 z-0"}
+                                `}
+                                style={{
+                                  position: (imageCarousels[msg.id] || 0) === idx ? "relative" : "absolute",
+                                  pointerEvents: (imageCarousels[msg.id] || 0) === idx ? "auto" : "none",
+                                  transition: "opacity 0.5s ease-in-out",
+                                }}
+                              />
+                            ))}
+                          </div>
                         </div>
                         {msg.images.length > 1 && (
-                          <>
-                            {/* Desktop/Tablet: ChevronLeft/ChevronRight */}
-                            <div className="absolute inset-0 hidden sm:flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg pointer-events-none bg-black/5">
-                              <button
-                                onClick={() => handleCarouselPrev(msg)}
-                                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 focus:outline-none pointer-events-auto cursor-pointer"
-                              >
-                                <ChevronLeft size={20} />
-                              </button>
-                              <button
-                                onClick={() => handleCarouselNext(msg)}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 focus:outline-none pointer-events-auto cursor-pointer"
-                              >
-                                <ChevronRight size={20} />
-                              </button>
-                            </div>
-                            {/* Mobile: Larger, always visible chevrons for easier touch */}
-                            <div className="absolute inset-0 flex sm:hidden items-center justify-between pointer-events-none">
-                              <button
-                                onClick={() => handleCarouselPrev(msg)}
-                                className="ml-1 bg-black/10 text-white p-2 rounded-full pointer-events-auto active:bg-black/50"
-                                style={{ zIndex: 2 }}
-                                aria-label="Previous image"
-                              >
-                                <ChevronLeft size={28} />
-                              </button>
-                              <button
-                                onClick={() => handleCarouselNext(msg)}
-                                className="mr-1 bg-black/10 text-white p-2 rounded-full pointer-events-auto active:bg-black/50"
-                                style={{ zIndex: 2 }}
-                                aria-label="Next image"
-                              >
-                                <ChevronRight size={28} />
-                              </button>
-                            </div>
-                          </>
+                          <div className="flex items-center justify-center gap-4 mt-2">
+                            <button
+                              onClick={() => handleCarouselPrev(msg)}
+                              className="bg-black/50 text-white p-2 rounded-full hover:bg-black/70 focus:outline-none cursor-pointer"
+                              aria-label="Previous image"
+                            >
+                              <ChevronLeft size={24} />
+                            </button>
+                            <span className="text-xs text-gray-500 select-none">
+                              {(imageCarousels[msg.id] || 0) + 1} / {msg.images.length}
+                            </span>
+                            <button
+                              onClick={() => handleCarouselNext(msg)}
+                              className="bg-black/50 text-white p-2 rounded-full hover:bg-black/70 focus:outline-none cursor-pointer"
+                              aria-label="Next image"
+                            >
+                              <ChevronRight size={24} />
+                            </button>
+                          </div>
                         )}
                       </div>
                     ) : msg.image ? (
@@ -569,11 +564,8 @@ const ChatInterface = ({
                       />
                     ) : null}
 {/* keet the loader until the imageUrl is completely loaded */}
-                    {isFetchingImage.loading &&
-                      isFetchingImage.messageId === msg.id && (
-                        <div className="absolute inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center rounded-lg">
-                          {/* user cannot select this text */}
-
+                    {isFetchingImage.loading && (
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center rounded-lg z-10">
                           <span className=" text-sm font-medium text-white select-none">Getting new image...</span>
                          <Loader className="animate-spin text-white" size={20}   />
                         </div>
