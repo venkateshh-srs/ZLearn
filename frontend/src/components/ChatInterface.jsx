@@ -276,10 +276,10 @@ const ChatInterface = ({
         role: 'model',
         parts: [{ text: msg.text }]
       });
-      // Add image context if it exists
-      if (msg.images && msg.images.length > 0) {
-        formattedMessages.push(...msg.images);
-      }
+      // remove image context if it exists. Gemini not accpeting url string image links 
+      // if (msg.images && msg.images.length > 0) {
+      //   formattedMessages.push(...msg.images);
+      // }
       
   
     }
@@ -571,7 +571,7 @@ const ChatInterface = ({
                         </div>
                       )}
                   </div>
-                  <div className="flex justify-end">
+                  <div className="flex justify-end mt-8">
                     {(msg.image || (msg.images && msg.images.length > 0)) && (
                       <button
                         onClick={() => handleGetAnotherImage(msg.id)}
