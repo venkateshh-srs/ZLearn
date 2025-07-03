@@ -407,7 +407,7 @@ const ChatInterface = ({
                 </div>
               )}
               <div
-                className={`text-sm md:text-[15.3px] break-words gap-2 ${
+                className={`text-[${fontSize}] break-words gap-2 ${
                   msg.sender === "system" ? "justify-center" : ""
                 }`}
                 style={msg.sender === "user" || msg.sender === "llm" ? { fontSize: fontSize + 'px' } : {}}
@@ -679,6 +679,8 @@ const ChatInterface = ({
             onClose={handleQuizClose}
             onSubmit={(score, selections) => handleQuizSubmit(activeQuiz.id, score, selections)}
             isQuizActive={!!activeQuiz}
+            fontSize={fontSize}
+
           />
         </div>
       )}

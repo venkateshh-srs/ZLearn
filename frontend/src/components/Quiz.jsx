@@ -74,7 +74,7 @@ const allQuizData = {
   // Add more subtopics and their respective questions here
 };
 
-const Quiz = ({ quizData, title, onClose, onSubmit, isQuizActive }) => {
+const Quiz = ({ quizData, title, onClose, onSubmit, isQuizActive, fontSize }) => {
   const [questions, setQuestions] = useState(quizData?.questions || []);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState(""); // Stores the index of the selected option as string for the CURRENT question
@@ -150,12 +150,49 @@ const Quiz = ({ quizData, title, onClose, onSubmit, isQuizActive }) => {
   }
   if (!quizData || questions.length === 0) {
     return (
-      <div className="p-8 mb-4 bg-white border border-gray-300 rounded-lg shadow min-w-full">
-        <p className="flex items-center justify-center gap-2 text-gray-600 text-md font-medium">
-          <Loader size={21} className="text-dark-gray animate-spin" />
-          {`Creating a quiz on ${title}...`}
-        </p>
-      </div>
+<div
+  className="p-8 mb-4 bg-white rounded-lg shadow min-w-full"
+  style={{
+    border: '1px solid transparent',
+    backgroundImage:
+      'linear-gradient(white, white), linear-gradient(to right, #4285F4, #DB4437, #F4B400, #0F9D58)',
+    backgroundOrigin: 'border-box',
+    backgroundClip: 'padding-box, border-box',
+    boxShadow: `
+      0 0 6px rgba(66, 133, 244,1),  
+      0 0 6px rgba(219, 68, 55,1),    
+      0 0 6px rgba(244, 180, 0, 1), 
+      0 0 6px rgba(15, 157, 88, 1),
+ 
+    `,
+    transition: 'box-shadow 0.3s ease-in-out',
+  }}
+>
+
+
+    <p className="flex items-center justify-center gap-2 text-gray-600 text-md font-medium">
+      {/* Assuming you have a Loader component */}
+      {/* <Loader size={21} className="text-dark-gray animate-spin" /> */}
+      <svg
+        width="21"
+        height="21"
+        viewBox="0 0 24 24"
+        xmlns="http://www.w3.org/2000/svg"
+        className="animate-spin text-gray-600"
+      >
+        <path
+          fill="currentColor"
+          d="M12,1A11,11,0,1,0,23,12,11,11,0,0,0,12,1Zm0,19a8,8,0,1,1,8-8A8,8,0,0,1,12,20Z"
+          opacity=".25"
+        />
+        <path
+          fill="currentColor"
+          d="M12,4a8,8,0,0,1,7.89,6.7A1.53,1.53,0,0,0,21.38,12h0a1.5,1.5,0,0,0,1.48-1.75A11,11,0,0,0,12,1Z"
+        />
+      </svg>
+      {`Creating a quiz on ${title}`}
+    </p>
+</div>
     );
   }
 
@@ -200,7 +237,7 @@ const Quiz = ({ quizData, title, onClose, onSubmit, isQuizActive }) => {
                 key={q.id}
                 className="p-3 bg-gray-50 rounded-md border border-gray-200"
               >
-                <p className="font-medium text-[15px] text-gray-800 mb-2">
+                <p className={`font-medium text-[px] text-gray-800 mb-2`}>
                   <ReactMarkdown
                       remarkPlugins={[remarkMath, remarkGfm]}
                       rehypePlugins={[rehypeKatex]}
@@ -215,7 +252,7 @@ const Quiz = ({ quizData, title, onClose, onSubmit, isQuizActive }) => {
                       userPickedOptionIndex === optionIdx.toString();
 
                     let optionClasses =
-                      "p-2.5 rounded-md text-sm flex justify-between items-center transition-colors duration-150 ease-in-out ";
+                      `p-2.5 rounded-md text-[${fontSize}px] flex justify-between items-center transition-colors duration-150 ease-in-out`
                     let correctnessIndicator = null;
 
                     if (didUserPickThisOption) {
@@ -314,7 +351,7 @@ const Quiz = ({ quizData, title, onClose, onSubmit, isQuizActive }) => {
         </button>
       </div>
       <div className="space-y-4">
-        <p className="text-md font-medium min-h-[3em]">
+        <p className={`text-[${fontSize}em] font-medium min-h-[3em]`}>
   
             {replaceLatexInline(currentQ.question)}
         
@@ -340,7 +377,9 @@ const Quiz = ({ quizData, title, onClose, onSubmit, isQuizActive }) => {
                 onChange={(e) => setSelectedAnswer(e.target.value)}
                 className="form-radio h-4 w-4 border-gray-300 hover:cursor-pointer"
               />
-              <span className="text-sm">
+         {console.log(fontSize)}
+             
+              <span className={`text-[${fontSize}px]`}>
                 <ReactMarkdown
                   remarkPlugins={[remarkMath, remarkGfm]}
                   rehypePlugins={[rehypeKatex]}
