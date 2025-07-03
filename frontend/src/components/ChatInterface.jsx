@@ -52,6 +52,7 @@ const ChatInterface = ({
   introduction,
   onGetAnotherImage,
   isFetchingImage,
+  fontSize,
 }) => {
   //console.log("rendered");
 
@@ -383,11 +384,11 @@ const ChatInterface = ({
             } ${msg.sender === "system" ? "w-full justify-center" : ""}`}
           >
             <div
-              className={`max-w-lg sm:max-w-md md:max-w-md lg:max-w-lg xl:max-w-2xl p-3 rounded-lg shadow overflow-hidden ${
+              className={`p-3 rounded-lg shadow overflow-hidden ${
                 msg.sender === "user"
-                  ? "bg-message-user text-gray-900 rounded-br-none border border-sky-100"
+                  ? "bg-message-user text-gray-900 rounded-br-none border border-sky-100 max-w-[85vw] sm:max-w-md md:max-w-md lg:max-w-lg xl:max-w-2xl"
                   : msg.sender === "llm"
-                  ? "bg-message-llm text-dark-gray border border-gray-100 rounded-bl-none"
+                  ? "bg-message-llm text-dark-gray border border-gray-100 rounded-bl-none max-w-[85vw] sm:max-w-md md:max-w-md lg:max-w-lg xl:max-w-2xl"
                   : msg.sender === "system"
                   ? "bg-blue-100 border border-blue-300 text-blue-800 text-center w-full max-w-md mx-auto text-sm"
                   : ""
@@ -409,6 +410,7 @@ const ChatInterface = ({
                 className={`text-sm md:text-[15.3px] break-words gap-2 ${
                   msg.sender === "system" ? "justify-center" : ""
                 }`}
+                style={msg.sender === "user" || msg.sender === "llm" ? { fontSize: fontSize + 'px' } : {}}
               >
                 <div
                   className={msg.sender === "llm" ? "llm-message-content" : ""}
@@ -463,7 +465,7 @@ const ChatInterface = ({
                           </blockquote>
                         ),
                         pre: ({ children }) => (
-                          <pre className="bg-gray-800 text-white p-4 rounded-md my-4 overflow-x-auto text-sm">
+                          <pre className={`bg-gray-800 text-white p-4 rounded-md my-4 overflow-x-auto text-[${fontSize}]`}>
                             {children}
                           </pre>
                         ),
@@ -491,7 +493,7 @@ const ChatInterface = ({
                           </th>
                         ),
                         td: ({ children }) => (
-                          <td className="px-4 py-2 text-sm text-gray-800">
+                          <td className= {`px-4 py-2 text-${fontSize} text-gray-800`}>
                             {children}
                           </td>
                         ),
@@ -604,6 +606,7 @@ const ChatInterface = ({
                       className="animate-in fade-in-0 duration-300 mt-4" // Added margin-top for spacing
                       relatedTopics={msg.prompts} // Use msg.prompts if it directly holds the topics
                       handleRelatedTopicClick={handleRelatedTopicClick}
+                      fontSize={fontSize}
                     />
                   )}
               </div>

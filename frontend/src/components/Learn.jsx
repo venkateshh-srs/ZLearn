@@ -37,6 +37,9 @@ function Learn() {
     messageId: null,
   });
 
+  // Font size state for chat messages
+  const [fontSize, setFontSize] = useState(15.5);
+
   // Load course data on mount or location change
   useEffect(() => {
     const newCourseData = location.state?.data; // From TopicInput
@@ -335,7 +338,7 @@ function Learn() {
       });
 
       const result = await response.json();
-      //console.log(result);
+      console.log(result);
 
       if (result.success) {
         return result;
@@ -720,6 +723,8 @@ function Learn() {
         handleGenerateQuiz={handleGenerateQuiz}
         handleRevisitQuiz={handleRevisitQuiz}
         isGeneratingQuiz={isGeneratingQuiz}
+        fontSize={fontSize}
+        setFontSize={setFontSize}
       />
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* The mobile header that was here is now integrated into ChatInterface */}
@@ -753,6 +758,7 @@ function Learn() {
           }
           onGetAnotherImage={handleGetAnotherImage}
           isFetchingImage={isFetchingImage}
+          fontSize={fontSize}
         />
       </div>
     </div>

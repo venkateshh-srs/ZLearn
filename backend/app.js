@@ -20,6 +20,10 @@ const port = 1235;
 
 // Initialize the Google Generative AI client
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+let inputTokens=0;
+let outputTokens=0;
+let totalTokens=0;
+
 
 const modelConfig = {
     model: "gemini-2.5-flash",
@@ -42,8 +46,8 @@ const buildGeminiChatHistory = (messages) => {
 //generate quiz along with answers
 const generateQuiz = async ({ title, subtopics = [], questionCount = 5, messages = null }) => {
   //console.log(`Generating quiz for topic: ${title}`);
-  console.log("generate quiz");
-  console.log(title,subtopics,questionCount,messages);
+  // console.log("generate quiz");
+  // console.log(title,subtopics,questionCount,messages);
   const model = genAI.getGenerativeModel({
       ...modelConfig,
       // Use JSON mode for structured output
@@ -89,7 +93,7 @@ const generateQuiz = async ({ title, subtopics = [], questionCount = 5, messages
               "minimum": 0,
               "maximum": 3
             }
-          },
+          }, 
           "required": [
             "id",
             "question",
@@ -121,12 +125,18 @@ const generateQuiz = async ({ title, subtopics = [], questionCount = 5, messages
            - Ensure the entire output is a single, valid JSON object that conforms to the schema. Do not include any text or markdown before or after the JSON.
            - Ensure there are exactly 4 options for each question.
            - Ensure the 'correct' field is the 0-based index of the correct answer.`;
-console.log(prompt);
+// console.log(prompt);
   try {
       const result = await model.generateContent({
         contents: [...chatHistory, { role: 'user', parts: [{ text: prompt }] }]  
       });
-      
+      inputTokens+=result.response.usageMetadata.promptTokenCount;
+      outputTokens+=result.response.usageMetadata.candidatesTokenCount;
+      totalTokens+=result.response.usageMetadata.totalTokenCount;
+      console.log("inputTokens: " , inputTokens);
+      console.log("outputTokens: " , outputTokens);
+      console.log("totalTokens: " , totalTokens);
+
       const jsonText = result.response.text();
       const jsonData = JSON.parse(jsonText);
 
@@ -151,6 +161,7 @@ console.log(prompt);
           error: error.message,
       };
   }
+
 };
 
 // streamResponse does NOT use JSON mode, as it's for free-text streaming. No changes needed here.
@@ -342,7 +353,12 @@ Generate a course outline for: "${userTopic}"
       const jsonText = result.response.text();
       const aiResponse = JSON.parse(jsonText);
       //console.log(aiResponse);
-      
+      inputTokens+=result.response.usageMetadata.promptTokenCount;
+      outputTokens+=result.response.usageMetadata.candidatesTokenCount;
+      totalTokens+=result.response.usageMetadata.totalTokenCount;
+      console.log("inputTokens: " , inputTokens);
+      console.log("outputTokens: " , outputTokens);
+      console.log("totalTokens: " , totalTokens);
       // We can still validate with Zod as a safeguard
       // const validation = courseContentSchema.safeParse(aiResponse);
 
@@ -350,6 +366,7 @@ Generate a course outline for: "${userTopic}"
       //     // console.error("Zod validation failed for course content:", validation.error);
       //     throw new Error("The AI's response did not conform to the expected schema.");
       // }
+
       
       if (aiResponse.success) {
           return {
@@ -435,8 +452,16 @@ async function getFollowupPrompts(messages) {
 
     try {
         const result = await model.generateContent({
-            contents: [...messages, { role: 'user', parts: [{ text: prompt }] }],
+            contents: [ { role: 'user', parts: [{ text: prompt }] }],
         });
+        let inputTokens=result.response.usageMetadata.promptTokenCount;
+        let outputTokens=result.response.usageMetadata.candidatesTokenCount;
+        let totalTokens=result.response.usageMetadata.totalTokenCount;
+        let thoughtTokens=result.response.usageMetadata.thoughtsTokenCount;
+        console.log("followup inputTokens: " , inputTokens);
+        console.log("followup outputTokens: " , outputTokens);
+        console.log("followup thoughtTokens: " , thoughtTokens);
+        console.log("followup totalTokens: " , totalTokens);
 
         const jsonText = result.response.text();
         const jsonData = JSON.parse(jsonText);
@@ -576,7 +601,12 @@ Strictly follow all of the above rules. Now, process the user query.`;
         const result = await model.generateContent({
             contents: [systemInstruction, ...messages]
         });
-
+        let inputTokens=result.response.usageMetadata.promptTokenCount;
+        let outputTokens=result.response.usageMetadata.candidatesTokenCount;
+        let totalTokens=result.response.usageMetadata.totalTokenCount;
+        console.log("answer inputTokens: " , inputTokens);
+        console.log("answer outputTokens: " , outputTokens);
+        console.log("answer totalTokens: " , totalTokens);
         const responseText = result.response.text();
         // console.log("responseText: " , responseText);
         // console.log(result.response.functionCalls());
@@ -612,6 +642,7 @@ Strictly follow all of the above rules. Now, process the user query.`;
               }]
             }];
 
+
             return {
                 success: true,
                 message:responseText,
@@ -643,6 +674,7 @@ async function getAIResponse(messages, currentTopic, topics, customPrompt) {
       getAnswerResponse(messages, currentTopic, topics, customPrompt),
       getFollowupPrompts(messages),
     ]);
+  
   //  console.log(answerResponse);
     return {
       success: true,
@@ -684,6 +716,8 @@ app.post("/chat", async (req, res) => {
     }
 
     const result = await getAIResponse(formattedMessages, currentTopicName, topics, customPrompt);
+    // console.log(result);
+    
 
     if (result.success) {
         let followupToSend = result.followup;
@@ -702,7 +736,7 @@ app.post("/chat", async (req, res) => {
 
 app.post("/generate-quiz", async (req, res) => {
     const { quizType, title, subtopics, questionCount, messages } = req.body;
-    console.log(req.body);
+    // console.log(req.body);
 
     if (!quizType || !title) {
         return res.status(400).json({ success: false, message: "Missing quizType or title." });
@@ -750,7 +784,7 @@ app.post("/get-another-image", async (req, res) => {
 
   const model = genAI.getGenerativeModel(modelConfig);
   const chatHistory = messages;
-  console.log(chatHistory);
+  // console.log(chatHistory);
 
   const prompt = `Based on the following conversation history, generate a new, but relevant search query for a diagram or image. The user wants another image that is different from any previous one. Provide only the search query which is then given to google search engine to get image. So give the query as a string, no extra text. Make sure the query should be different from the previous one's in the chat history but should be relevant to the topic.`;
 

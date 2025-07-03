@@ -287,6 +287,8 @@ const Sidebar = ({
   handleGenerateQuiz,
   handleRevisitQuiz,
   isGeneratingQuiz,
+  fontSize,
+  setFontSize,
 }) => {
   const [openTopicIds, setOpenTopicIds] = useState(new Set([]));
   const [showRegenerateModal, setShowRegenerateModal] = useState(false);
@@ -431,6 +433,7 @@ const Sidebar = ({
               <Pencil size={17} className="text-gray-500" />
               Edit Prompt
             </button>
+         
             {showRegenerateModal && (
               <div className="fixed inset-0 bg-black/15 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                 <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
@@ -480,6 +483,33 @@ const Sidebar = ({
               />
               Regenerate Topics
             </button>
+               {/* Font Size Controls */}
+            <div className="flex flex-col items-start mt-2">
+              <label className="text-xs ml-2 text-gray-500 mb-1 font-medium">Font Size</label>
+              <div className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-1 shadow-sm">
+                <button
+                  className="w-7 h-7 flex items-center justify-center rounded-full bg-white text-gray-500 hover:bg-gray-200 transition disabled:opacity-40"
+                  onClick={() => setFontSize(f => Math.max(15.0, Math.round((f - 0.5) * 10) / 10))}
+                  disabled={fontSize <= 15.0}
+                  aria-label="Decrease font size"
+                  type="button"
+                >
+                  <span className="text-lg font-bold">–</span>
+                </button>
+                <span className="text-sm font-mono w-12 text-center text-gray-700 select-none">
+                  {fontSize.toFixed(1)}px
+                </span>
+                <button
+                  className="w-7 h-7 flex items-center justify-center rounded-full bg-white text-gray-500 hover:bg-gray-200 transition disabled:opacity-40"
+                  onClick={() => setFontSize(f => Math.min(18.5, Math.round((f + 0.5) * 10) / 10))}
+                  disabled={fontSize >= 18.5}
+                  aria-label="Increase font size"
+                  type="button"
+                >
+                  <span className="text-lg font-bold">+</span>
+                </button>
+              </div>
+            </div>
           </div>
       </div>
       
