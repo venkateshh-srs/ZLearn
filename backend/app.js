@@ -48,6 +48,7 @@ const generateQuiz = async ({ title, subtopics = [], questionCount = 5, messages
   //console.log(`Generating quiz for topic: ${title}`);
   // console.log("generate quiz");
   // console.log(title,subtopics,questionCount,messages);
+
   const model = genAI.getGenerativeModel({
       ...modelConfig,
       // Use JSON mode for structured output

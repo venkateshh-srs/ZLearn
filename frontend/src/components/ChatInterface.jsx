@@ -537,7 +537,7 @@ const ChatInterface = ({
                           </div>
                         </div>
                         {msg.images.length > 1 && (
-                          <div className="flex items-center justify-center gap-4 mt-2">
+                          <div className="flex items-center justify-center gap-4">
                             <button
                               onClick={() => handleCarouselPrev(msg)}
                               className="bg-black/50 text-white p-2 rounded-full hover:bg-black/70 focus:outline-none cursor-pointer"
@@ -573,12 +573,12 @@ const ChatInterface = ({
                         </div>
                       )}
                   </div>
-                  <div className="flex justify-end mt-8">
+                  <div className="flex justify-end">
                     {(msg.image || (msg.images && msg.images.length > 0)) && (
                       <button
                         onClick={() => handleGetAnotherImage(msg.id)}
                         disabled={isFetchingImage.loading}
-                        className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed "
+                        className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-8"
                       >
                         {isFetchingImage.loading &&
                         isFetchingImage.messageId === msg.id

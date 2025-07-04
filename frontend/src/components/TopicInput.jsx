@@ -1,9 +1,14 @@
 import { useState } from "react";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Code } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { v4 as uuidv4 } from "uuid";
 
-export default function TopicInput({ input, setInput, isGenerating, setIsGenerating }) {
+export default function TopicInput({
+  input,
+  setInput,
+  isGenerating,
+  setIsGenerating,
+}) {
   const isDisabled = input.trim() === "";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -65,6 +70,25 @@ export default function TopicInput({ input, setInput, isGenerating, setIsGenerat
   return (
     <>
       <div className="flex flex-col gap-3">
+        <div className="absolute top-4 right-4">
+          <div className="relative group">
+            <div
+              className="absolute -inset-1 rounded-full bg-gradient-to-r from-purple-500 via-cyan-400 to-pink-500 
+                       blur-sm group-hover:blur-md 
+                       animate-border-flow bg-[length:200%_auto]" // ✨ Key changes here
+            ></div>
+
+            {/* This is your button */}
+            <button
+              onClick={() => navigate("/code/home")}
+              className="relative z-10 flex items-center gap-2 px-6 py-2 text-white bg-gray-900 rounded-full text-base font-semibold shadow-lg hover:scale-105 transition-transform duration-300"
+            >
+              <Code size={18} />
+              <span>Want to Learn Code?</span>
+            </button>
+          </div>
+        </div>
+
         <div className="relative w-full">
           <input
             type="text"
@@ -88,7 +112,6 @@ export default function TopicInput({ input, setInput, isGenerating, setIsGenerat
             />
           </div>
         </div>
-
         <button
           disabled={isDisabled || loading}
           onClick={handleClick}
