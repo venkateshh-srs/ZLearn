@@ -39,7 +39,7 @@ const CodeHome = () => {
           </li>
           <li className="flex items-center">
             <Zap className="w-6 h-6 text-cyan-500 mr-4" />
-            Real-world projects
+            Ai assistant
           </li>
         </ul>
         <Link to="/code/learn">
