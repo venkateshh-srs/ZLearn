@@ -525,7 +525,7 @@ const ChatInterface = ({
                                 loading="lazy"
                                 alt={`LLM Generated Content ${idx + 1}`}
                                 className={`w-full h-auto my-4 object-contain absolute left-0 top-0 transition-opacity duration-500 ease-in-out
-                                  ${((imageCarousels[msg.id] || 0) === idx) ? "opacity-100 z-10 relative static" : "opacity-0 z-0"}
+                                  ${((imageCarousels[msg.id] || 0) === idx) ? "opacity-100 z-10 relative" : "opacity-0 z-0"}
                                 `}
                                 style={{
                                   position: (imageCarousels[msg.id] || 0) === idx ? "relative" : "absolute",
