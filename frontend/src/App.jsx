@@ -16,7 +16,7 @@ function App() {
       <Route path="/learn" element={<Learn />} />
       <Route path="/code/home" element={<CodeHome />} />
       <Route
-        path="/code/learn"
+        path="/code/dashboard"
         element={<CodeLearn onBack={() => navigate("/code/home")} onSelectLanguage={(lang) => navigate(`/code/dev?lang=${lang}`)} />}
       />
     </Routes>

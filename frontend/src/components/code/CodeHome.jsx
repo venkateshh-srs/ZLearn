@@ -42,7 +42,7 @@ const CodeHome = () => {
             Ai assistant
           </li>
         </ul>
-        <Link to="/code/learn">
+        <Link to="/code/dashboard">
           <button className="w-full bg-gradient-to-r from-cyan-400 to-purple-500 text-white font-bold py-4 px-6 rounded-xl shadow-lg transform hover:scale-105 transition duration-300 ease-in-out focus:outline-none focus:ring-4 focus:ring-cyan-300/50">
             Start Coding Now
           </button>
