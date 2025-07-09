@@ -453,7 +453,7 @@ async function getFollowupPrompts(messages) {
 
     try {
         const result = await model.generateContent({
-            contents: [ { role: 'user', parts: [{ text: prompt }] }],
+            contents: [...messages, { role: 'user', parts: [{ text: prompt }] }],
         });
         let inputTokens=result.response.usageMetadata.promptTokenCount;
         let outputTokens=result.response.usageMetadata.candidatesTokenCount;
