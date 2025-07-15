@@ -3,6 +3,9 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Clock, Book, X, Trash2 } from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
+import { toast } from "react-toastify";
+import { Loader2 } from "lucide-react";
 
 const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message }) => {
   if (!isOpen) return null;
@@ -170,6 +173,7 @@ const RecentCourseItem = ({
 };
 
 function ChatHistory({ isGenerating }) {
+  const { userId, token } = useAuth();
   const [history, setHistory] = useState([]);
   const [showAll, setShowAll] = useState(false);
   const navigate = useNavigate();
@@ -181,15 +185,47 @@ function ChatHistory({ isGenerating }) {
     title: "",
     message: "",
   });
+  const [loading, setLoading] = useState(false);
+  const fetchHistory = async () => {
+    setLoading(true);
+    console.log("fetching history");
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL}/api/history`,
+        {
+          credentials: "include",
+        }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        console.log("data: ", data);
+        const courses = (data.courses || []).map((course) => {
+          const progress =
+            course.totalTopics > 0
+              ? Math.round((course.completedTopics / course.totalTopics) * 100)
+              : 0;
+          return {
+            ...course,
+            id: course.courseId,
+            progress: progress,
+            remainingTopics: course.totalTopics - course.completedTopics,
+            totalSubtopics: course.totalTopics,
+          };
+        });
+        setHistory(courses);
+      }
+    } catch (error) {
+      console.error("Failed to fetch history:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const storedHistory =
-      JSON.parse(localStorage.getItem("learningJourneyHistory")) || {};
-    const sortedHistory = Object.values(storedHistory).sort(
-      (a, b) => new Date(b.lastAccessed) - new Date(a.lastAccessed)
-    );
-    setHistory(sortedHistory);
-  }, []);
+    if (userId) {
+      fetchHistory();
+    }
+  }, [userId, token]);
 
   useEffect(() => {
     const filtered = history.filter((course) =>
@@ -200,7 +236,7 @@ function ChatHistory({ isGenerating }) {
 
   const handleContinue = (topicId) => {
     if (isGenerating) return;
-    navigate("/learn", { state: { topicId } });
+    navigate(`/learn/course/${topicId}`);
   };
 
   const closeModal = () => {
@@ -217,15 +253,29 @@ function ChatHistory({ isGenerating }) {
   const handleRemoveConfirmation = (courseId, courseTitle) => {
     setModalState({
       isOpen: true,
-      onConfirm: () => {
-        const allCourses =
-          JSON.parse(localStorage.getItem("learningJourneyHistory")) || {};
-        delete allCourses[courseId];
-        localStorage.setItem(
-          "learningJourneyHistory",
-          JSON.stringify(allCourses)
-        );
-        setHistory((prev) => prev.filter((c) => c.id !== courseId));
+      onConfirm: async () => {
+        try {
+          const response = await fetch(
+            `${
+              import.meta.env.VITE_BACKEND_URL
+            }/api/history/courses/${courseId}`,
+            {
+              method: "DELETE",
+              credentials: "include",
+            }
+          );
+          if (response.ok) {
+            setHistory((prev) => prev.filter((c) => c.id !== courseId));
+            toast.success("Course removed successfully", {
+              position: "top-right",
+              autoClose: 2000,
+            });
+          } else {
+            console.error("Failed to delete course");
+          }
+        } catch (error) {
+          console.error("Error deleting course:", error);
+        }
       },
       title: "Confirm Deletion",
       message: `Are you sure you want to remove the course "${courseTitle}"? `,
@@ -235,10 +285,27 @@ function ChatHistory({ isGenerating }) {
   const handleClearAllConfirmation = () => {
     setModalState({
       isOpen: true,
-      onConfirm: () => {
-        localStorage.removeItem("learningJourneyHistory");
-        localStorage.removeItem("lastActiveTopicId");
-        setHistory([]);
+      onConfirm: async () => {
+        try {
+          const response = await fetch(
+            `${import.meta.env.VITE_BACKEND_URL}/api/history`,
+            {
+              method: "DELETE",
+              credentials: "include",
+            }
+          );
+          if (response.ok) {
+            setHistory([]);
+            toast.success("History cleared successfully", {
+              position: "top-right",
+              autoClose: 2000,
+            });
+          } else {
+            console.error("Failed to clear history");
+          }
+        } catch (error) {
+          console.error("Error clearing history:", error);
+        }
       },
       title: "Clear All History",
       message: "Are you sure you want to remove all courses?",
@@ -247,69 +314,86 @@ function ChatHistory({ isGenerating }) {
 
   const handleViewAllClick = () => {
     if (isGenerating) return;
-    const storedHistory =
-      JSON.parse(localStorage.getItem("learningJourneyHistory")) || {};
-    const sortedHistory = Object.values(storedHistory).sort(
-      (a, b) => new Date(b.lastAccessed) - new Date(a.lastAccessed)
-    );
-    setHistory(sortedHistory);
+    fetchHistory();
     setShowAll(true);
   };
 
-  if (history.length === 0) {
-    return null;
-  }
+  // if (!userId) {
+  //   return null;
+  // }
 
-  const recentCourse = history[0];
+  if (history.length === 0 || !userId) {
+    if (loading) {
+      return (
+        <div className="flex flex-col justify-center items-center gap-2 pt-12">
+          <h1 className="text-2xl font-bold text-gray-600">
+            Loading History...
+          </h1>
+          <Loader2 className="animate-spin text-gray-600" size={20} />
+        </div>
+      );
+    }
+    return (
+      <div className="flex flex-col justify-center items-center gap-2 pt-12">
+        <h1 className="text-2xl font-bold text-gray-500">
+          No learning history found.
+        </h1>
+        {/* start you journe by creating a copurse text */}
+        <p className="text-sm text-gray-500">
+          Start your journey by creating a course
+        </p>
+      </div>
+    );
+  }
 
   return (
     <>
-      <div
-        className={`mt-8 bg-white p-6 shadow-xl rounded-xl w-full max-w-2xl ${
-          isGenerating
-            ? "pointer-events-none cursor-not-allowed opacity-50"
-            : ""
-        }`}
-      >
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center gap-2">
-            <Clock size={20} className="text-gray-600" />
-            <h2 className="text-lg font-semibold text-gray-800">
-              Recent Courses
-            </h2>
+      {loading ? (
+        <div className="">
+          <h1 className="text-2xl font-bold">Loading...</h1>
+        </div>
+      ) : (
+        <div
+          className={`mt-8 bg-white p-6 shadow-xl rounded-xl w-full max-w-2xl ${
+            isGenerating
+              ? "pointer-events-none cursor-not-allowed opacity-50"
+              : ""
+          }`}
+        >
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-2">
+              <Clock size={20} className="text-gray-600" />
+              <h2 className="text-lg font-semibold text-gray-800">
+                Recent Courses
+              </h2>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {/* show 5 recent courses */}
+            {history.slice(0, 5).map((course) => {
+              return (
+                <RecentCourseItem
+                  key={course.id}
+                  course={course}
+                  onContinue={() => handleContinue(course.id)}
+                  totalSubtopics={course.totalSubtopics}
+                  remainingTopics={course.remainingTopics}
+                />
+              );
+            })}
+
+            <div className="flex justify-end pt-1">
+              <button
+                onClick={handleViewAllClick}
+                className="text-sm font-medium text-blue-600 hover:underline"
+              >
+                View All History
+              </button>
+            </div>
           </div>
         </div>
-
-        <div className="space-y-2">
-          {/* show 5 recent courses */}
-          {history.slice(0, 5).map((course) => {
-            const completedSubtopicsLength =
-              course.completedSubtopics?.length || 0;
-            const totalSubtopics = course.topics.reduce((acc, topic) => {
-              return acc + topic.subtopics.length;
-            }, 0);
-            const remainingTopics = totalSubtopics - completedSubtopicsLength;
-            return (
-              <RecentCourseItem
-                key={course.id}
-                course={course}
-                onContinue={() => handleContinue(course.id)}
-                totalSubtopics={totalSubtopics}
-                remainingTopics={remainingTopics}
-              />
-            );
-          })}
-
-          <div className="flex justify-end pt-1">
-            <button
-              onClick={handleViewAllClick}
-              className="text-sm font-medium text-blue-600 hover:underline"
-            >
-              View All History
-            </button>
-          </div>
-        </div>
-      </div>
+      )}
 
       {showAll && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

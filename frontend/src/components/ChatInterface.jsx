@@ -19,10 +19,15 @@ import {
   Menu,
   Home,
   Loader,
+  Share,
+  Check,
 } from "lucide-react";
 import Quiz from "./Quiz";
 import TextSelectionMenu from "./TextSelectionMenu"; // Import the new component
 import RelatedTopics from "./RelatedTopics";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { ToastContainer } from "react-toastify";
 
 const ChatInterface = ({
   messages,
@@ -53,6 +58,7 @@ const ChatInterface = ({
   onGetAnotherImage,
   isFetchingImage,
   fontSize,
+  publicId,
 }) => {
   //console.log("rendered");
 
@@ -74,7 +80,7 @@ const ChatInterface = ({
     // //console.log(prompt[index]);
     onSendMessage(prompt);
   };
-  
+
   function usePrevious(value) {
     const ref = useRef();
     useEffect(() => {
@@ -87,15 +93,18 @@ const ChatInterface = ({
   const scrollToBottom = () => {
     if (messages.length > 0) {
       console.log(messageRefs.current);
-      const lastMessageElement = messageRefs.current[messages[messages.length - 1].id];
+      const lastMessageElement =
+        messageRefs.current[messages[messages.length - 1].id];
       console.log(lastMessageElement);
       if (lastMessageElement) {
-        lastMessageElement.scrollIntoView({ behavior: "smooth", block: "start" });
+        lastMessageElement.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
       }
     }
   };
-  
- 
+
   useEffect(() => {
     if (prevMessages && messages.length === prevMessages.length) {
       return;
@@ -113,29 +122,28 @@ const ChatInterface = ({
     }
   }, [scrollToMessageId, setScrollToMessageId]);
   useEffect(() => {
-  messages.forEach((msg) => {
-    const messageId = msg.id;
-    const numImages = msg.images?.length || 0;
-    const currentIndex = imageCarousels[messageId] || 0;
+    messages.forEach((msg) => {
+      const messageId = msg.id;
+      const numImages = msg.images?.length || 0;
+      const currentIndex = imageCarousels[messageId] || 0;
 
-    // If new image added and not already scrolled to it
-    if (numImages > 0 && currentIndex !== numImages - 1) {
-      const lastImageRef = imageRefs.current[messageId]?.[numImages - 1];
-      if (lastImageRef) {
-        lastImageRef.scrollIntoView({
-          behavior: "smooth",
-          block: "nearest",
-          inline: "center",
-        });
-        setImageCarousels((prev) => ({
-          ...prev,
-          [messageId]: numImages - 1,
-        }));
+      // If new image added and not already scrolled to it
+      if (numImages > 0 && currentIndex !== numImages - 1) {
+        const lastImageRef = imageRefs.current[messageId]?.[numImages - 1];
+        if (lastImageRef) {
+          lastImageRef.scrollIntoView({
+            behavior: "smooth",
+            block: "nearest",
+            inline: "center",
+          });
+          setImageCarousels((prev) => ({
+            ...prev,
+            [messageId]: numImages - 1,
+          }));
+        }
       }
-    }
-  });
-}, [messages]); // msgList should contain all messages and their images
-
+    });
+  }, [messages]); // msgList should contain all messages and their images
 
   // useEffect(() => {
   //   // show recently added image which is added to the current message
@@ -147,7 +155,7 @@ const ChatInterface = ({
   //       lastImageRef.scrollIntoView({ behavior: "smooth", block: "nearest" });
   //     }
   //   }
- 
+
   // }, [messages]);
 
   const handleSend = () => {
@@ -155,11 +163,28 @@ const ChatInterface = ({
       onSendMessage(inputValue.trim());
       setInputValue("");
       if (textAreaRef.current) {
-    textAreaRef.current.style.height = "auto";
-  }
+        textAreaRef.current.style.height = "auto";
+      }
     }
   };
+  const handleShare = () => {
+    // share the current chat
+    const text = import.meta.env.VITE_FRONTEND_URL;
+    const url = `${text}/shared/learn/course/${publicId}`;
+    navigator.clipboard.writeText(url);
+    console.log("url: ", url);
+    // show a toast message
+    toast.success("Link copied to clipboard", {
+      position: "top-center",
+      autoClose: 1500,
+      theme: "dark",
+    });
 
+    // toast.error("Link copied to clipboard");
+    // show a modal with the url
+    // toast.info("Share this link with your friends");
+    // toast.info(url);
+  };
   const handleCarouselPrev = (message) => {
     const messageId = message.id;
     const numImages = message.images.length;
@@ -176,7 +201,7 @@ const ChatInterface = ({
         inline: "center",
       });
     }
-    console.log("imagecarousel: ",imageCarousels);
+    console.log("imagecarousel: ", imageCarousels);
 
     setImageCarousels((prev) => ({
       ...prev,
@@ -245,9 +270,7 @@ const ChatInterface = ({
     ) {
       return (
         <div className="p-4 my-4 bg-blue-50 border border-blue-300 rounded-lg text-center text-l">
-          <p className="text-sky-800">
-            {introduction}
-          </p>
+          <p className="text-sky-800">{introduction}</p>
         </div>
       );
     }
@@ -262,31 +285,28 @@ const ChatInterface = ({
   };
 
   const handleTakeQuiz = () => {
-     if (currentSubtopicName && !isThinking) {
-       const formattedMessages = [];
-     messages.forEach((msg) => {
-      if (msg.sender === 'user') {
-      formattedMessages.push({
-        role: 'user',
-        parts: [{ text: msg.text }]
-      });
-    } else if (msg.sender === 'llm') {
-
+    if (currentSubtopicName && !isThinking) {
+      const formattedMessages = [];
+      messages.forEach((msg) => {
+        if (msg.sender === "user") {
+          formattedMessages.push({
+            role: "user",
+            parts: [{ text: msg.text }],
+          });
+        } else if (msg.sender === "llm") {
           // Add the main LLM response
-      formattedMessages.push({
-        role: 'model',
-        parts: [{ text: msg.text }]
+          formattedMessages.push({
+            role: "model",
+            parts: [{ text: msg.text }],
+          });
+          // remove image context if it exists. Gemini not accpeting url string image links
+          // if (msg.images && msg.images.length > 0) {
+          //   formattedMessages.push(...msg.images);
+          // }
+        }
       });
-      // remove image context if it exists. Gemini not accpeting url string image links 
-      // if (msg.images && msg.images.length > 0) {
-      //   formattedMessages.push(...msg.images);
-      // }
-      
-  
-    }
-  });
       handleGenerateQuiz({
-        quizType: 'subtopic',
+        quizType: "subtopic",
         id: currentChat.subtopicId,
         title: currentSubtopicName,
         messages: formattedMessages,
@@ -294,7 +314,6 @@ const ChatInterface = ({
       });
     }
   };
-
 
   function replaceLatexInline(text) {
     if (!text) return "";
@@ -315,7 +334,7 @@ const ChatInterface = ({
       /\\text\{[^}]+\}(?:[_^]\{[^}]+\})*/g,
       (match) => `$${match}$`
     );
-  
+
     return text;
     // return text.replace(/\\\((.+?)\\\)/g, (_, inner) => {
     //   return `$${inner.trim()}$`;
@@ -346,7 +365,6 @@ const ChatInterface = ({
           </button>
         </div>
         <h1 className="text-lg font-semibold text-dark-gray truncate px-2">
-         
           {currentSubtopicName && isTopicSelected && !activeQuiz ? (
             <span className="text-blue-500">
               {topics.find((t) => t.id === currentChat.topicId)?.name}
@@ -354,19 +372,56 @@ const ChatInterface = ({
           ) : activeQuiz ? (
             <span className="text-sky-700"> Quiz: {activeQuiz.title}</span>
           ) : (
-            <span className="text-black">
-              {mainTopicName}
-            </span>
+            <span className="text-black">{mainTopicName}</span>
           )}
         </h1>
-        <button
-          onClick={handleHomeNavigation}
-          className="p-2 mr-5 text-dark-gray hover:bg-light-gray hover:cursor-pointer rounded-full "
-          aria-label="Go to home"
-          disabled={isThinking}
-        >
-          <Home size={22} />
-        </button>
+        {/* share button */}
+        <div className="flex items-center gap-8">
+          {/* after click convert the icon to tick icon and then again to share  */}
+          {/*
+            Share button: after click, show a tick for 1.5s, then revert to share icon.
+            Uses lucide-react icons.
+          */}
+          {(() => {
+            const [shared, setShared] = React.useState(false);
+            // Import icons from lucide-react
+            // (Assume at top: import { Share, Check } from "lucide-react";)
+            const handleShareClick = () => {
+              handleShare();
+              setShared(true);
+              setTimeout(() => setShared(false), 1500);
+            };
+
+            return (
+              <button
+                onClick={handleShareClick}
+                className="p-2 text-dark-gray hover:bg-light-gray hover:cursor-pointer rounded-full "
+                aria-label="Share"
+                disabled={shared}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">
+                    {shared ? "Copied!" : "Share"}
+                  </span>
+                  {shared ? (
+                    <Check size={20} className="text-green-600" />
+                  ) : (
+                    <Share size={22} />
+                  )}
+                </div>
+              </button>
+            );
+          })()}
+
+          <button
+            onClick={handleHomeNavigation}
+            className="p-2 mr-5 text-dark-gray hover:bg-light-gray hover:cursor-pointer rounded-full "
+            aria-label="Go to home"
+            disabled={isThinking}
+          >
+            <Home size={22} />
+          </button>
+        </div>
       </div>
 
       {/* Attach the ref to the chat container */}
@@ -374,7 +429,6 @@ const ChatInterface = ({
         ref={chatContainerRef}
         className="flex-1 overflow-y-auto min-h-0 space-y-4 p-4 md:p-8 sm:p-10 mb-4 pr-2 relative bg-chat"
       >
-
         {messages.map((msg) => (
           <div
             key={msg.id}
@@ -410,7 +464,11 @@ const ChatInterface = ({
                 className={`text-[${fontSize}] break-words gap-2 ${
                   msg.sender === "system" ? "justify-center" : ""
                 }`}
-                style={msg.sender === "user" || msg.sender === "llm" ? { fontSize: fontSize + 'px' } : {}}
+                style={
+                  msg.sender === "user" || msg.sender === "llm"
+                    ? { fontSize: fontSize + "px" }
+                    : {}
+                }
               >
                 <div
                   className={msg.sender === "llm" ? "llm-message-content" : ""}
@@ -465,7 +523,9 @@ const ChatInterface = ({
                           </blockquote>
                         ),
                         pre: ({ children }) => (
-                          <pre className={`bg-gray-800 text-white p-4 rounded-md my-4 overflow-x-auto text-[${fontSize}]`}>
+                          <pre
+                            className={`bg-gray-800 text-white p-4 rounded-md my-4 overflow-x-auto text-[${fontSize}]`}
+                          >
                             {children}
                           </pre>
                         ),
@@ -493,7 +553,9 @@ const ChatInterface = ({
                           </th>
                         ),
                         td: ({ children }) => (
-                          <td className= {`px-4 py-2 text-${fontSize} text-gray-800`}>
+                          <td
+                            className={`px-4 py-2 text-${fontSize} text-gray-800`}
+                          >
                             {children}
                           </td>
                         ),
@@ -512,7 +574,10 @@ const ChatInterface = ({
                             We'll use a wrapper div with relative positioning and fixed height,
                             and absolutely position the images, fading them in/out with opacity and transition.
                           */}
-                          <div className="relative w-full" style={{ minHeight: "200px" }}>
+                          <div
+                            className="relative w-full"
+                            style={{ minHeight: "200px" }}
+                          >
                             {msg.images.map((imgUrl, idx) => (
                               <img
                                 key={imgUrl + idx}
@@ -525,11 +590,21 @@ const ChatInterface = ({
                                 loading="lazy"
                                 alt={`LLM Generated Content ${idx + 1}`}
                                 className={`w-full h-auto my-4 object-contain absolute left-0 top-0 transition-opacity duration-500 ease-in-out
-                                  ${((imageCarousels[msg.id] || 0) === idx) ? "opacity-100 z-10 relative static" : "opacity-0 z-0"}
+                                  ${
+                                    (imageCarousels[msg.id] || 0) === idx
+                                      ? "opacity-100 z-10 relative"
+                                      : "opacity-0 z-0"
+                                  }
                                 `}
                                 style={{
-                                  position: (imageCarousels[msg.id] || 0) === idx ? "relative" : "absolute",
-                                  pointerEvents: (imageCarousels[msg.id] || 0) === idx ? "auto" : "none",
+                                  position:
+                                    (imageCarousels[msg.id] || 0) === idx
+                                      ? "relative"
+                                      : "absolute",
+                                  pointerEvents:
+                                    (imageCarousels[msg.id] || 0) === idx
+                                      ? "auto"
+                                      : "none",
                                   transition: "opacity 0.5s ease-in-out",
                                 }}
                               />
@@ -546,7 +621,8 @@ const ChatInterface = ({
                               <ChevronLeft size={24} />
                             </button>
                             <span className="text-xs text-gray-500 select-none">
-                              {(imageCarousels[msg.id] || 0) + 1} / {msg.images.length}
+                              {(imageCarousels[msg.id] || 0) + 1} /{" "}
+                              {msg.images.length}
                             </span>
                             <button
                               onClick={() => handleCarouselNext(msg)}
@@ -565,20 +641,22 @@ const ChatInterface = ({
                         className="w-full h-auto my-4 object-contain"
                       />
                     ) : null}
-{/* keet the loader until the imageUrl is completely loaded */}
+                    {/* keet the loader until the imageUrl is completely loaded */}
                     {isFetchingImage.loading && (
-                        <div className="absolute inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center rounded-lg z-10">
-                          <span className=" text-sm font-medium text-white select-none">Getting new image...</span>
-                         <Loader className="animate-spin text-white" size={20}   />
-                        </div>
-                      )}
+                      <div className="absolute inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center rounded-lg z-10">
+                        <span className=" text-sm font-medium text-white select-none">
+                          Getting new image...
+                        </span>
+                        <Loader className="animate-spin text-white" size={20} />
+                      </div>
+                    )}
                   </div>
-                  <div className="flex justify-end mt-8">
+                  <div className="flex justify-end">
                     {(msg.image || (msg.images && msg.images.length > 0)) && (
                       <button
                         onClick={() => handleGetAnotherImage(msg.id)}
                         disabled={isFetchingImage.loading}
-                        className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed "
+                        className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-8"
                       >
                         {isFetchingImage.loading &&
                         isFetchingImage.messageId === msg.id
@@ -593,9 +671,7 @@ const ChatInterface = ({
                   <button
                     onClick={() => setShowRawText(!showRawText)}
                     className="text-xs text-gray-500 hover:text-gray-700 mt-2"
-                  >
-                    {showRawText ? "Show Markdown" : "Show Raw Text"}
-                  </button>
+                  ></button>
                 )}
 
                 {/* --- Related Topics Section moved inside the LLM message rendering --- */}
@@ -622,21 +698,22 @@ const ChatInterface = ({
                 <span className="font-semibold text-xs opacity-80">Zlearn</span>
               </div>
 
-              <div className="flex flex-row gap-2 items-center mt-2"> {/* Increased gap for better spacing */}
+              <div className="flex flex-row gap-2 items-center mt-2">
+                {" "}
+                {/* Increased gap for better spacing */}
                 <Spinner />
                 <span>Thinking...</span>
                 {/* Simple text button */}
-                   <button
-                    onClick={()=>{
-                      handleStopThinking();
-                      setStoppedThinking(true);
-                    }}
-                    className="flex items-center gap-1 px-3 py-1 rounded-md border border-gray-300 bg-gray-50 text-gray-800 text-sm font-medium hover:bg-gray-100 transition-colors"
-                  >
-                    <XSquare size={14} className="opacity-80" /> {/* Stop icon */}
-                    Stop
-                  </button>
-
+                <button
+                  onClick={() => {
+                    handleStopThinking();
+                    setStoppedThinking(true);
+                  }}
+                  className="flex items-center gap-1 px-3 py-1 rounded-md border border-gray-300 bg-gray-50 text-gray-800 text-sm font-medium hover:bg-gray-100 transition-colors"
+                >
+                  <XSquare size={14} className="opacity-80" /> {/* Stop icon */}
+                  Stop
+                </button>
               </div>
             </div>
           </div>
@@ -655,7 +732,7 @@ const ChatInterface = ({
             </div>
           </div>
         )}
-        {errorMessage && !isThinking && !stoppedThinking &&(
+        {errorMessage && !isThinking && !stoppedThinking && (
           <div className="flex w-full justify-start">
             <div className="max-w-lg pl-2 pt-2 pr-5 pb-4 rounded-lg shadow overflow-hidden bg-message-llm text-dark-gray border border-gray-100 rounded-bl-none">
               <div className="flex items-center mb-1">
@@ -677,10 +754,11 @@ const ChatInterface = ({
             quizData={activeQuiz.data}
             title={activeQuiz.title}
             onClose={handleQuizClose}
-            onSubmit={(score, selections) => handleQuizSubmit(activeQuiz.id, score, selections)}
+            onSubmit={(score, selections) =>
+              handleQuizSubmit(activeQuiz.id, score, selections)
+            }
             isQuizActive={!!activeQuiz}
             fontSize={fontSize}
-
           />
         </div>
       )}
@@ -752,13 +830,14 @@ const ChatInterface = ({
               }
               rows={1}
               style={{
-                height: 'auto',
-                minHeight: '44px',
-                maxHeight: '128px'
+                height: "auto",
+                minHeight: "44px",
+                maxHeight: "128px",
               }}
               onInput={(e) => {
-                e.target.style.height = 'auto';
-                e.target.style.height = Math.min(e.target.scrollHeight, 128) + 'px';
+                e.target.style.height = "auto";
+                e.target.style.height =
+                  Math.min(e.target.scrollHeight, 128) + "px";
               }}
             />
           </div>
@@ -778,7 +857,6 @@ const ChatInterface = ({
         </div>
       </div>
     </div>
-    
   );
 };
 

@@ -11,9 +11,11 @@ import {
   Loader,
   ChevronUp,
   Pencil,
-  X
+  X,
 } from "lucide-react";
 import customPrompt from "../data/customPrompt";
+import { useAuth } from "../contexts/AuthContext";
+
 const QuizActions = ({
   topic,
   quizId,
@@ -23,17 +25,20 @@ const QuizActions = ({
   handleGenerateQuiz,
   handleRevisitQuiz,
   isGeneratingQuiz,
-  activeQuiz
+  activeQuiz,
+  isGenerating,
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const existingQuiz = quizzes[quizId];
   const isThisQuizGenerating = isGeneratingQuiz && activeQuiz?.id === quizId;
+  const { userId } = useAuth();
+  const navigate = useNavigate();
 
   const getAllSubtopicNamesForTopic = (targetTopic) => {
     let names = [];
-    targetTopic.subtopics?.forEach(st => {
+    targetTopic.subtopics?.forEach((st) => {
       if (st.subtopics && st.subtopics.length > 0) {
-        st.subtopics.forEach(sst => names.push(sst.name));
+        st.subtopics.forEach((sst) => names.push(sst.name));
       } else {
         names.push(st.name);
       }
@@ -44,7 +49,7 @@ const QuizActions = ({
 
   const getAllSubtopicsForCourse = (courseTopics) => {
     let allNames = [];
-    courseTopics.forEach(t => {
+    courseTopics.forEach((t) => {
       allNames.push(...getAllSubtopicNamesForTopic(t));
     });
     // console.log(allNames);
@@ -53,12 +58,14 @@ const QuizActions = ({
 
   const handleGenerateClick = () => {
     // console.log("clicked");
-    
-    const subtopics = isOverall ? getAllSubtopicsForCourse(allTopics) : getAllSubtopicNamesForTopic(topic);
+
+    const subtopics = isOverall
+      ? getAllSubtopicsForCourse(allTopics)
+      : getAllSubtopicNamesForTopic(topic);
     handleGenerateQuiz({
-      quizType: isOverall ? 'overall' : 'topic',
+      quizType: isOverall ? "overall" : "topic",
       id: quizId,
-      title: isOverall ? 'Overall Review' : topic.name,
+      title: isOverall ? "Overall Review" : topic.name,
       subtopics,
       questionCount: isOverall ? 15 : 10,
     });
@@ -66,33 +73,61 @@ const QuizActions = ({
   };
 
   const handleRevisitClick = () => {
-    handleRevisitQuiz(quizId, isOverall ? 'Overall Review' : topic.name, isOverall ? 'overall' : 'topic');
+    handleRevisitQuiz(
+      quizId,
+      isOverall ? "Overall Review" : topic.name,
+      isOverall ? "overall" : "topic"
+    );
     setIsMenuOpen(false);
   };
-  
+
   const handleToggleMenu = () => {
     if (existingQuiz) {
-      setIsMenuOpen(prev => !prev);
+      setIsMenuOpen((prev) => !prev);
     } else {
       handleGenerateClick();
     }
   };
 
-  const buttonDisabled = !!activeQuiz || isGeneratingQuiz;
+  const buttonDisabled = !!activeQuiz || isGeneratingQuiz || isGenerating;
 
   return (
     <div className="relative">
       <button
         onClick={handleToggleMenu}
         disabled={buttonDisabled}
-        className={`flex items-center flex-start gap-2 w-content text-sm font-medium px-3 py-2 mt-1 rounded-md transition-colors
-          ${isThisQuizGenerating ? 'bg-blue-100 text-sky-800 animate-pulse' : 'bg-sky-50 hover:bg-sky-100 text-sky-700'}
-          ${buttonDisabled && !isThisQuizGenerating ? 'opacity-60 cursor-not-allowed' : ''}
+        className={`flex items-center flex-start gap-2 w-content text-sm font-medium px-3 py-2 mt-1 rounded-md transition-colors ${
+          isGenerating ? "opacity-50 cursor-not-allowed" : ""
+        }
+        
+          ${
+            isThisQuizGenerating
+              ? "bg-blue-100 text-sky-800 animate-pulse"
+              : "bg-sky-50 hover:bg-sky-100 text-sky-700"
+          }
+          ${
+            buttonDisabled && !isThisQuizGenerating
+              ? "opacity-60 cursor-not-allowed"
+              : ""
+          }
         `}
       >
-        {isThisQuizGenerating ? <Loader size={16} className="animate-spin" /> : <BrainCircuit size={16} />}
-        <span>{isThisQuizGenerating ? 'Generating...' : (isOverall ? 'Overall Quiz' : 'Topic Quiz')}</span>
-        {existingQuiz && (isMenuOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />)}
+        {isThisQuizGenerating ? (
+          <Loader size={16} className="animate-spin" />
+        ) : (
+          <BrainCircuit size={16} />
+        )}
+        {/* disable while isGenerating */}
+
+        <span>
+          {isThisQuizGenerating
+            ? "Generating..."
+            : isOverall
+            ? "Overall Quiz"
+            : "Topic Quiz"}
+        </span>
+        {existingQuiz &&
+          (isMenuOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />)}
       </button>
 
       {isMenuOpen && existingQuiz && (
@@ -125,6 +160,7 @@ const SubtopicItem = ({
   toggleAccordion,
   openTopicIds,
   activeQuiz,
+  currentChat,
 }) => {
   const hasSubSubtopics = subtopic.subtopics && subtopic.subtopics.length > 0;
   const isSubtopicOpen = openTopicIds.has(subtopic.id);
@@ -133,12 +169,27 @@ const SubtopicItem = ({
   if (hasSubSubtopics) {
     return (
       <div key={subtopic.id}>
-        <button
-          onClick={() => toggleAccordion(subtopic.id)}
+        <div
+          role="button"
+          tabIndex="0"
+          onClick={
+            isThinking || !!activeQuiz
+              ? undefined
+              : () => toggleAccordion(subtopic.id)
+          }
+          onKeyDown={(e) => {
+            if (
+              (e.key === "Enter" || e.key === " ") &&
+              !(isThinking || !!activeQuiz)
+            ) {
+              toggleAccordion(subtopic.id);
+            }
+          }}
           className={`w-full flex items-center text-left gap-3 p-2.5 rounded-md hover:bg-light-gray focus:outline-none focus:bg-light-gray transition-colors duration-150 ${
-            isThinking || !!activeQuiz ? "opacity-70 cursor-not-allowed" : ""
+            isThinking || !!activeQuiz
+              ? "opacity-70 cursor-not-allowed"
+              : "cursor-pointer"
           }`}
-          disabled={isThinking || !!activeQuiz}
         >
           <span className="font-medium text-sm text-dark-gray whitespace-nowrap">
             {subtopic.name}
@@ -148,34 +199,46 @@ const SubtopicItem = ({
           ) : (
             <ChevronRight size={18} className="text-medium-gray" />
           )}
-        </button>
+        </div>
         {isSubtopicOpen && (
           <div className="ml-4 my-1 space-y-1 border-l border-light-gray pl-3">
             {subtopic.subtopics.map((subSubtopic) => (
               // This is now the final, clickable item
-              <button
+              <div
+                role="button"
+                tabIndex="0"
                 key={subSubtopic.id}
-                onClick={() =>
-                  handleSubtopicClick(
-                    topic.id,
-                    subSubtopic.id,
-                    subSubtopic.name
-                  )
+                onClick={
+                  isThinking || !!activeQuiz
+                    ? undefined
+                    : () =>
+                        handleSubtopicClick(
+                          topic.id,
+                          subSubtopic.id,
+                          subSubtopic.name
+                        )
                 }
                 className={`w-full flex items-center space-x-2.5 p-2 rounded-md text-left text-sm hover:bg-light-gray focus:outline-none focus:bg-light-gray transition-colors duration-150 ${
-                  isThinking || !!activeQuiz ? "opacity-70 cursor-not-allowed" : ""
+                  isThinking || !!activeQuiz
+                    ? "opacity-70 cursor-not-allowed"
+                    : "cursor-pointer"
                 }`}
-                disabled={isThinking || !!activeQuiz}
               >
                 {completedSubtopics.has(subSubtopic.id) ? (
                   <CheckCircle size={16} className="text-accent" />
                 ) : (
                   <Circle size={16} className="text-medium-gray" />
                 )}
-                <span className={`text-dark-gray opacity-90 whitespace-nowrap`}>
+                <span
+                  className={`text-dark-gray opacity-90 whitespace-nowrap ${
+                    currentChat?.subtopicId === subSubtopic.id
+                      ? "font-bold"
+                      : ""
+                  }`}
+                >
                   {subSubtopic.name}
                 </span>
-              </button>
+              </div>
             ))}
           </div>
         )}
@@ -185,27 +248,47 @@ const SubtopicItem = ({
 
   // Otherwise, render it as a standard, clickable subtopic item
   return (
-    <button
+    <div
+      role="button"
+      tabIndex="0"
       key={subtopic.id}
-      onClick={() => handleSubtopicClick(topic.id, subtopic.id, subtopic.name)}
+      onClick={
+        isThinking || !!activeQuiz
+          ? undefined
+          : () => handleSubtopicClick(topic.id, subtopic.id, subtopic.name)
+      }
+      onKeyDown={(e) => {
+        if (
+          (e.key === "Enter" || e.key === " ") &&
+          !(isThinking || !!activeQuiz)
+        ) {
+          handleSubtopicClick(topic.id, subtopic.id, subtopic.name);
+        }
+      }}
       className={`w-full flex items-center space-x-2.5 p-2 rounded-md text-left text-sm hover:bg-light-gray focus:outline-none focus:bg-light-gray transition-colors duration-150 ${
-        isThinking || !!activeQuiz ? "opacity-70 cursor-not-allowed" : ""
+        isThinking || !!activeQuiz
+          ? "opacity-70 cursor-not-allowed"
+          : "cursor-pointer"
       }`}
-      disabled={isThinking || !!activeQuiz}
     >
       {completedSubtopics.has(subtopic.id) ? (
         <CheckCircle size={16} className="text-accent" />
       ) : (
         <Circle size={16} className="text-medium-gray" />
       )}
-      <span className={`text-dark-gray opacity-90 whitespace-nowrap`}>
+      <span
+        className={`text-dark-gray opacity-90 whitespace-nowrap ${
+          currentChat?.subtopicId === subtopic.id ? "font-bold" : ""
+        }`}
+      >
         {subtopic.name}
       </span>
-    </button>
+    </div>
   );
 };
 
-const EditLLMPrompt = ({setIsEditingPrompt, isEditingPrompt}) => {
+const EditLLMPrompt = ({ setIsEditingPrompt, isEditingPrompt }) => {
+  const { userId } = useAuth();
   const navigate = useNavigate();
   const [prompt, setPrompt] = useState(customPrompt);
   useEffect(() => {
@@ -223,48 +306,52 @@ const EditLLMPrompt = ({setIsEditingPrompt, isEditingPrompt}) => {
     setIsEditingPrompt(false);
   };
   return (
-   <>
-   {/* A modal with text area and a save button and a close button */}
-   <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-     <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-scroll">
-       <div className="p-6 border-b border-gray-200">
-         <h2 className="text-xl font-semibold text-gray-800">Edit LLM Prompt</h2>
-        
-       </div>
-       
-       <div className="p-6">
-         <textarea 
-           className="w-full resize-none border border-gray-400 rounded-lg p-4 text-sm transition-colors duration-200"
-           rows={20}
-           value={prompt} 
-           onChange={(e) => setPrompt(e.target.value)} 
-           placeholder="Enter your custom prompt here"
-         />
-       </div>
-       {/* reset button */}
-       <div className="flex justify-start mb-4">
-         <button className="text-gray-500 hover:text-gray-800 bg-gray-100 px-4 py-2 rounded-lg text-sm font-medium" onClick={() => setPrompt(customPrompt)}>
-           Reset Prompt
-         </button>
-       </div>
-       
-       <div className="flex gap-3 p-6 bg-gray-50 border-t border-gray-200">
-         <button 
-           className="flex-1 bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 focus:outline-none transition-colors duration-200"
-            onClick={handleSave}
-         >
-           Save Changes
-         </button>
-         <button 
-           className="flex-1 bg-gray-200 text-gray-800 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-300 focus:outline-none transition-colors duration-200"
-           onClick={() => setIsEditingPrompt(false)}
-         >
-           Cancel
-         </button>
-       </div>
-     </div>
-   </div>
-   </>
+    <>
+      {/* A modal with text area and a save button and a close button */}
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-scroll">
+          <div className="p-6 border-b border-gray-200">
+            <h2 className="text-xl font-semibold text-gray-800">
+              Edit LLM Prompt
+            </h2>
+          </div>
+
+          <div className="p-6">
+            <textarea
+              className="w-full resize-none border border-gray-400 rounded-lg p-4 text-sm transition-colors duration-200"
+              rows={20}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="Enter your custom prompt here"
+            />
+          </div>
+          {/* reset button */}
+          <div className="flex justify-start mb-4">
+            <button
+              className="text-gray-500 hover:text-gray-800 bg-gray-100 px-4 py-2 rounded-lg text-sm font-medium"
+              onClick={() => setPrompt(customPrompt)}
+            >
+              Reset Prompt
+            </button>
+          </div>
+
+          <div className="flex gap-3 p-6 bg-gray-50 border-t border-gray-200">
+            <button
+              className="flex-1 bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 focus:outline-none transition-colors duration-200"
+              onClick={handleSave}
+            >
+              Save Changes
+            </button>
+            <button
+              className="flex-1 bg-gray-200 text-gray-800 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-300 focus:outline-none transition-colors duration-200"
+              onClick={() => setIsEditingPrompt(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
   );
 };
 
@@ -289,11 +376,17 @@ const Sidebar = ({
   isGeneratingQuiz,
   fontSize,
   setFontSize,
+  isPublicView,
+  currentChat,
 }) => {
+  const { userId } = useAuth();
   const [openTopicIds, setOpenTopicIds] = useState(new Set([]));
   const [showRegenerateModal, setShowRegenerateModal] = useState(false);
   const navigate = useNavigate();
   const [isEditingPrompt, setIsEditingPrompt] = useState(false);
+  const [activeTopicId, setActiveTopicId] = useState(null);
+  const [overallQuizId, setOverallQuizId] = useState(null);
+
   const toggleAccordion = (id) => {
     if (isThinking) return;
     setOpenTopicIds((prev) => {
@@ -315,6 +408,10 @@ const Sidebar = ({
     }
     // toggleSidebar(); // Uncomment if you want the sidebar to close on selection
   };
+
+  if (!userId) {
+    return null;
+  }
 
   return (
     <>
@@ -341,7 +438,6 @@ const Sidebar = ({
               {topicName || "My Course"}
             </p>
           </div>
-         
         </div>
 
         <div className="w-full">
@@ -363,14 +459,19 @@ const Sidebar = ({
           <div className="inline-block min-w-full">
             {topics.map((topic) => (
               <div key={topic.id} className="mb-2">
-                <button
-                  onClick={() => toggleAccordion(topic.id)}
+                <div
+                  role="button"
+                  tabIndex="0"
+                  onClick={
+                    isThinking || !!activeQuiz
+                      ? undefined
+                      : () => toggleAccordion(topic.id)
+                  }
                   className={`w-full flex items-center gap-3 text-left p-2.5 rounded-md hover:bg-gray-100 focus:outline-none focus:bg-gray-100 transition-colors duration-150 ${
                     isThinking || !!activeQuiz
                       ? "opacity-70 cursor-not-allowed"
-                      : ""
+                      : "cursor-pointer"
                   }`}
-                  disabled={isThinking || !!activeQuiz}
                 >
                   <span className="font-medium text-sm text-gray-700 whitespace-nowrap">
                     {topic.name}
@@ -380,7 +481,7 @@ const Sidebar = ({
                   ) : (
                     <ChevronRight size={18} className="text-gray-500" />
                   )}
-                </button>
+                </div>
                 {openTopicIds.has(topic.id) && (
                   <div className="ml-4 my-1 space-y-1 border-l border-gray-200 pl-3">
                     {topic.subtopics.map((subtopic) => (
@@ -394,9 +495,10 @@ const Sidebar = ({
                         toggleAccordion={toggleAccordion}
                         openTopicIds={openTopicIds}
                         activeQuiz={activeQuiz}
+                        currentChat={currentChat}
                       />
                     ))}
-                     <QuizActions
+                    <QuizActions
                       topic={topic}
                       quizId={`topic-${topic.id}`}
                       quizzes={quizzes}
@@ -404,12 +506,13 @@ const Sidebar = ({
                       handleRevisitQuiz={handleRevisitQuiz}
                       isGeneratingQuiz={isGeneratingQuiz}
                       activeQuiz={activeQuiz}
+                      isGenerating={isGenerating}
                     />
                   </div>
                 )}
               </div>
             ))}
-             <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="mt-4 pt-4 border-t border-gray-200">
               <QuizActions
                 isOverall={true}
                 allTopics={topics}
@@ -419,54 +522,57 @@ const Sidebar = ({
                 handleRevisitQuiz={handleRevisitQuiz}
                 isGeneratingQuiz={isGeneratingQuiz}
                 activeQuiz={activeQuiz}
+                isGenerating={isGenerating}
               />
             </div>
           </div>
-       
         </nav>
-          {/* Fixed bottom actions: Edit Prompt & Regenerate */}
-          <div className="sticky bottom-0 left-0 w-full bg-white z-20 flex flex-col space-y-2 px-4 py-3 border-t border-gray-200">
-            <button
+        {/* Fixed bottom actions: Edit Prompt & Regenerate */}
+        <div className="sticky bottom-0 left-0 w-full bg-white z-20 flex flex-col space-y-2 px-4 py-3 border-t border-gray-200">
+          {/* <button
               className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100 text-gray-700 font-small text-sm transition-colors"
               onClick={() => setIsEditingPrompt(true)}
             >
               <Pencil size={17} className="text-gray-500" />
               Edit Prompt
-            </button>
-         
-            {showRegenerateModal && (
-              <div className="fixed inset-0 bg-black/15 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
-                  <h3 className="text-lg font-semibold mb-4 text-gray-900 text-center">
-                    Confirm Regeneration
-                  </h3>
-                  <p className="text-gray-600 mb-6 text-center ">
-                    Are you sure?
-                    <br />
-                    The current chats will be deleted.
-                  </p>
-                  <div className="flex gap-3 justify-center">
-                    <button
-                      onClick={() => setShowRegenerateModal(false)}
-                      className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors w-full border border-gray-300 "
-                    >
-                      No
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowRegenerateModal(false);
-                        onRegenerate();
-                      }}
-                      className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-md transition-colors w-full"
-                    >
-                      Yes
-                    </button>
-                  </div>
+            </button> */}
+
+          {showRegenerateModal && (
+            <div className="fixed inset-0 bg-black/15 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
+                <h3 className="text-lg font-semibold mb-4 text-gray-900 text-center">
+                  Confirm Regeneration
+                </h3>
+                <p className="text-gray-600 mb-6 text-center ">
+                  Are you sure?
+                  <br />
+                  The current chats will be deleted.
+                </p>
+                <div className="flex gap-3 justify-center">
+                  <button
+                    onClick={() => setShowRegenerateModal(false)}
+                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors w-full border border-gray-300 "
+                  >
+                    No
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowRegenerateModal(false);
+                      onRegenerate();
+                    }}
+                    className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-md transition-colors w-full"
+                  >
+                    Yes
+                  </button>
                 </div>
               </div>
-            )}
+            </div>
+          )}
+          {!isPublicView && (
             <button
-              onClick={!isThinking ? () => setShowRegenerateModal(true) : undefined}
+              onClick={
+                !isThinking ? () => setShowRegenerateModal(true) : undefined
+              }
               className={`w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100 text-gray-700 font-small transition-colors text-sm ${
                 isThinking || !!activeQuiz
                   ? "opacity-50 cursor-not-allowed"
@@ -481,39 +587,55 @@ const Sidebar = ({
                   isGenerating ? "animate-spin" : ""
                 }`}
               />
-              Regenerate Topics
+              {isGenerating ? "Regenerating..." : "Regenerate Topics"}
             </button>
-               {/* Font Size Controls */}
-            <div className="flex flex-col items-start mt-2">
-              <label className="text-xs ml-2 text-gray-500 mb-1 font-medium">Font Size</label>
-              <div className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-1 shadow-sm">
-                <button
-                  className="w-7 h-7 flex items-center justify-center rounded-full bg-white text-gray-500 hover:bg-gray-200 transition disabled:opacity-40"
-                  onClick={() => setFontSize(f => Math.max(15.0, Math.round((f - 0.5) * 10) / 10))}
-                  disabled={fontSize <= 15.0}
-                  aria-label="Decrease font size"
-                  type="button"
-                >
-                  <span className="text-lg font-bold">–</span>
-                </button>
-                <span className="text-sm font-mono w-12 text-center text-gray-700 select-none">
-                  {fontSize.toFixed(1)}px
-                </span>
-                <button
-                  className="w-7 h-7 flex items-center justify-center rounded-full bg-white text-gray-500 hover:bg-gray-200 transition disabled:opacity-40"
-                  onClick={() => setFontSize(f => Math.min(18.5, Math.round((f + 0.5) * 10) / 10))}
-                  disabled={fontSize >= 18.5}
-                  aria-label="Increase font size"
-                  type="button"
-                >
-                  <span className="text-lg font-bold">+</span>
-                </button>
-              </div>
+          )}
+          {/* Font Size Controls */}
+          <div className="flex flex-col items-start mt-2">
+            <label className="text-xs ml-2 text-gray-500 mb-1 font-medium">
+              Font Size
+            </label>
+            <div className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-1 shadow-sm">
+              <button
+                className="w-7 h-7 flex items-center justify-center rounded-full bg-white text-gray-500 hover:bg-gray-200 transition disabled:opacity-40"
+                onClick={() =>
+                  setFontSize((f) =>
+                    Math.max(15.0, Math.round((f - 0.5) * 10) / 10)
+                  )
+                }
+                disabled={fontSize <= 15.0}
+                aria-label="Decrease font size"
+                type="button"
+              >
+                <span className="text-lg font-bold">–</span>
+              </button>
+              <span className="text-sm font-mono w-12 text-center text-gray-700 select-none">
+                {fontSize.toFixed(1)}px
+              </span>
+              <button
+                className="w-7 h-7 flex items-center justify-center rounded-full bg-white text-gray-500 hover:bg-gray-200 transition disabled:opacity-40"
+                onClick={() =>
+                  setFontSize((f) =>
+                    Math.min(18.5, Math.round((f + 0.5) * 10) / 10)
+                  )
+                }
+                disabled={fontSize >= 18.5}
+                aria-label="Increase font size"
+                type="button"
+              >
+                <span className="text-lg font-bold">+</span>
+              </button>
             </div>
           </div>
+        </div>
       </div>
-      
-      {isEditingPrompt && <EditLLMPrompt setIsEditingPrompt={setIsEditingPrompt} isEditingPrompt={isEditingPrompt} />}
+
+      {isEditingPrompt && (
+        <EditLLMPrompt
+          setIsEditingPrompt={setIsEditingPrompt}
+          isEditingPrompt={isEditingPrompt}
+        />
+      )}
     </>
   );
 };
