@@ -409,10 +409,6 @@ const Sidebar = ({
     // toggleSidebar(); // Uncomment if you want the sidebar to close on selection
   };
 
-  if (!userId) {
-    return null;
-  }
-
   return (
     <>
       {isOpen && (
