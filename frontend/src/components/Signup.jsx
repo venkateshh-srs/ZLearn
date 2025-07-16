@@ -3,6 +3,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { EyeIcon, EyeOffIcon, ArrowLeftIcon, BookOpen } from "lucide-react";
 import axios from "axios";
+import { toast } from "react-toastify";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -57,15 +58,25 @@ const Signup = () => {
 
     try {
       const response = await axios.post(
-        "http://localhost:1235/api/auth/signup",
+        `${import.meta.env.VITE_BACKEND_URL}/api/auth/signup`,
         {
           email,
           password,
+        },
+        {
+          withCredentials: true,
         }
       );
-      if (response.status === 200) {
-        console.log("Signup successful");
-        console.log(response.data);
+      if (response.status === 201) {
+        // console.log("response", response.data);
+        login(response.data.userId);
+        toast.success("Signup successful", {
+          position: "top-center",
+          autoClose: 1000,
+          theme: "colored",
+          hideProgressBar: true,
+          closeOnClick: true,
+        });
         navigate("/");
       }
     } catch (error) {

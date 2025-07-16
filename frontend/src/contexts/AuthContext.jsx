@@ -17,6 +17,7 @@ export const AuthProvider = ({ children }) => {
 
         if (res.ok) {
           const data = await res.json();
+          // console.log("data", data);
           setUserId(data.userId); // assuming your backend returns this
         } else {
           setUserId(null);
@@ -33,6 +34,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = (id) => {
+    // console.log("id", id);
     setUserId(id);
   };
 

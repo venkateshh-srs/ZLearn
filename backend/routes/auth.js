@@ -28,8 +28,19 @@ router.post("/signup", async (req, res) => {
     const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, {
       expiresIn: "1d",
     });
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: false, // Only HTTPS in prod
+      sameSite: "Lax",
+      maxAge: 24 * 60 * 60 * 1000, // 1 day
+    });
+    console.log("token", token);
 
-    res.status(201).json({ message: "User created successfully", token });
+    res.status(201).json({
+      message: "User created successfully",
+      token,
+      userId: newUser._id,
+    });
   } catch (err) {
     console.log("Error creating user:", err.message);
     res
@@ -79,11 +90,14 @@ router.post("/login", async (req, res) => {
 // @access  Private
 router.get("/me", protect, async (req, res) => {
   try {
+    console.log("me route");
     const user = await User.findById(req.user.id).select("-password");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    res.json(user);
+    console.log("user", user);
+
+    res.status(200).json(user);
   } catch (error) {
     console.error("Error fetching user data:", error);
     res.status(500).json({ message: "Server error" });

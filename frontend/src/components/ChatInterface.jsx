@@ -92,10 +92,10 @@ const ChatInterface = ({
 
   const scrollToBottom = () => {
     if (messages.length > 0) {
-      console.log(messageRefs.current);
+      // console.log(messageRefs.current);
       const lastMessageElement =
         messageRefs.current[messages[messages.length - 1].id];
-      console.log(lastMessageElement);
+      // console.log(lastMessageElement);
       if (lastMessageElement) {
         lastMessageElement.scrollIntoView({
           behavior: "smooth",
@@ -172,7 +172,7 @@ const ChatInterface = ({
     const text = import.meta.env.VITE_FRONTEND_URL;
     const url = `${text}/shared/learn/course/${publicId}`;
     navigator.clipboard.writeText(url);
-    console.log("url: ", url);
+    // console.log("url: ", url);
     // show a toast message
     toast.success("Link copied to clipboard", {
       position: "top-center",
@@ -201,7 +201,7 @@ const ChatInterface = ({
         inline: "center",
       });
     }
-    console.log("imagecarousel: ", imageCarousels);
+    //  console.log("imagecarousel: ", imageCarousels);
 
     setImageCarousels((prev) => ({
       ...prev,

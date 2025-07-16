@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { EyeIcon, EyeOffIcon, ArrowLeftIcon,BookOpen } from "lucide-react";
+import { EyeIcon, EyeOffIcon, ArrowLeftIcon, BookOpen } from "lucide-react";
 import axios from "axios";
 import { toast } from "react-toastify";
 
@@ -35,7 +35,7 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Login request received:", { email, password });
+    // console.log("Login request received:", { email, password });
     if (loading) {
       return;
     }
@@ -48,7 +48,7 @@ const Login = () => {
 
     try {
       const response = await axios.post(
-        "http://localhost:1235/api/auth/login",
+        `${import.meta.env.VITE_BACKEND_URL}/api/auth/login`,
         {
           email,
           password,
@@ -57,10 +57,10 @@ const Login = () => {
           withCredentials: true,
         }
       );
-      console.log(response);
+      // console.log(response);
       if (response.status === 200) {
         login(response.data.token);
-        console.log(response.data.token);
+        // console.log(response.data.token);
         toast.success("Logged in successfully ", {
           position: "top-center",
           autoClose: 2000,

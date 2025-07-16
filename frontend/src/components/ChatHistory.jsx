@@ -173,7 +173,7 @@ const RecentCourseItem = ({
 };
 
 function ChatHistory({ isGenerating }) {
-  const { userId, token } = useAuth();
+  const { userId } = useAuth();
   const [history, setHistory] = useState([]);
   const [showAll, setShowAll] = useState(false);
   const navigate = useNavigate();
@@ -188,7 +188,8 @@ function ChatHistory({ isGenerating }) {
   const [loading, setLoading] = useState(false);
   const fetchHistory = async () => {
     setLoading(true);
-    console.log("fetching history");
+    // console.log("fetching history");
+    // console.log("userId", userId);
     try {
       const response = await fetch(
         `${import.meta.env.VITE_BACKEND_URL}/api/history`,
@@ -198,7 +199,7 @@ function ChatHistory({ isGenerating }) {
       );
       if (response.ok) {
         const data = await response.json();
-        console.log("data: ", data);
+        // console.log("data: ", data);
         const courses = (data.courses || []).map((course) => {
           const progress =
             course.totalTopics > 0
@@ -215,7 +216,12 @@ function ChatHistory({ isGenerating }) {
         setHistory(courses);
       }
     } catch (error) {
-      console.error("Failed to fetch history:", error);
+      // console.error("Failed to fetch history:", error);
+      toast.error("Failed to fetch history", {
+        position: "top-center",
+        autoClose: 1000,
+        theme: "colored",
+      });
     } finally {
       setLoading(false);
     }
@@ -225,7 +231,7 @@ function ChatHistory({ isGenerating }) {
     if (userId) {
       fetchHistory();
     }
-  }, [userId, token]);
+  }, [userId]);
 
   useEffect(() => {
     const filtered = history.filter((course) =>
@@ -269,12 +275,21 @@ function ChatHistory({ isGenerating }) {
             toast.success("Course removed successfully", {
               position: "top-right",
               autoClose: 2000,
+              theme: "colored",
             });
           } else {
-            console.error("Failed to delete course");
+            toast.error("Failed to delete course", {
+              position: "top-center",
+              autoClose: 1000,
+              theme: "colored",
+            });
           }
         } catch (error) {
-          console.error("Error deleting course:", error);
+          toast.error("Error deleting course", {
+            position: "top-center",
+            autoClose: 1000,
+            theme: "colored",
+          });
         }
       },
       title: "Confirm Deletion",
@@ -301,10 +316,18 @@ function ChatHistory({ isGenerating }) {
               autoClose: 2000,
             });
           } else {
-            console.error("Failed to clear history");
+            toast.error("Failed to clear history", {
+              position: "top-center",
+              autoClose: 1000,
+              theme: "colored",
+            });
           }
         } catch (error) {
-          console.error("Error clearing history:", error);
+          toast.error("Error clearing history", {
+            position: "top-center",
+            autoClose: 1000,
+            theme: "colored",
+          });
         }
       },
       title: "Clear All History",

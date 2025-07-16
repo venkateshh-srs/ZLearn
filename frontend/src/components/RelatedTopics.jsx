@@ -1,7 +1,7 @@
 import React from "react";
 import { ArrowRight } from "lucide-react";
 
-function RelatedTopics({ relatedTopics, handleRelatedTopicClick,fontSize }) {
+function RelatedTopics({ relatedTopics, handleRelatedTopicClick, fontSize }) {
   return (
     <div className="pt-6 border-t border-gray-100">
       <div className="max-w-3xl">
@@ -19,7 +19,9 @@ function RelatedTopics({ relatedTopics, handleRelatedTopicClick,fontSize }) {
               className="flex w-full items-center gap-2 rounded-md bg-gray-50 p-3 text-left hover:cursor-pointer hover:bg-blue-50"
             >
               <ArrowRight className="flex-shrink-0 text-blue-500" size={15} />
-              <span className={`text-[${fontSize}] text-gray-700`}>{prompt}</span>
+              <span className={`text-[${fontSize}] text-gray-700`}>
+                {prompt}
+              </span>
             </button>
           ))}
         </div>

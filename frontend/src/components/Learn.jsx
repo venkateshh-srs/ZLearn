@@ -9,7 +9,7 @@ function Learn() {
   const location = useLocation();
   const abortControllerRef = useRef(null);
   const isPublicView = location.pathname.startsWith("/shared");
-  console.log("isPublicView: ", isPublicView);
+  // console.log("isPublicView: ", isPublicView);
   // console.log("location.pathname: ", location.pathname);
   // Core state for the entire component
   const [currentTopicName, setCurrentTopicName] = useState(null);
@@ -102,7 +102,7 @@ function Learn() {
           state: { topicId: topicToLoad },
         });
       } catch (err) {
-        console.error("Failed to fetch course:", err);
+        // console.error("Failed to fetch course:", err);
         setError("Could not load this course.");
         navigate("/"); // fallback to home
       } finally {
@@ -118,7 +118,7 @@ function Learn() {
     const currentMessages = chatThreads[currentChat.topicId] || [];
     const messageIndex = currentMessages.findIndex((m) => m.id === messageId);
     if (messageIndex === -1) {
-      console.error("Message not found");
+      // console.error("Message not found");
       setIsFetchingImage({ loading: false, messageId: null });
       return;
     }
@@ -183,7 +183,7 @@ function Learn() {
         return newChatThreads;
       });
     } catch (error) {
-      console.error("Error getting another image:", error);
+      // console.error("Error getting another image:", error);
       // You might want to set an error message state here
     } finally {
       setIsFetchingImage({ loading: false, messageId: null });
@@ -330,7 +330,7 @@ function Learn() {
     topics,
     customPrompt
   ) => {
-    console.log("getting LLM response from DB");
+    // console.log("getting LLM response from DB");
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
     try {
@@ -373,7 +373,7 @@ function Learn() {
     const customPrompt = localStorage.getItem("customPrompt");
 
     if (isPublicView && subtopicId) {
-      console.log("getting LLM response from DB");
+      // console.log("getting LLM response from DB");
       const llmResponse = await getLLMResponseFromDB(
         subtopicId,
         publicId,
@@ -406,7 +406,7 @@ function Learn() {
       });
 
       const result = await response.json();
-      console.log(result);
+      // console.log(result);
 
       if (result.success) {
         return result;
@@ -608,7 +608,7 @@ function Learn() {
 
     try {
       const llmReply = await getLLMResponse(formattedMessages);
-      console.log(llmReply);
+      // console.log(llmReply);
 
       const llmResponseMessage = {
         id: Date.now() + 2,
@@ -629,7 +629,7 @@ function Learn() {
         llmResponseMessage.prompts = llmReply.followup.prompts;
       }
       // //console.log(llmResponseMessage);
-      console.log(llmResponseMessage);
+      // console.log(llmResponseMessage);
       setChatThreads((prevThreads) => ({
         ...prevThreads,
         [topicId]: [...prevThreads[topicId], llmResponseMessage],
@@ -654,7 +654,7 @@ function Learn() {
 
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
-    console.log("regenerating:");
+    // console.log("regenerating:");
     try {
       const res = await fetch(
         `${import.meta.env.VITE_BACKEND_URL}/generate-course`,
@@ -698,7 +698,12 @@ function Learn() {
       setCurrentChat({ topicId: 1, subtopicId: null, subtopicName: "" });
       setRelatedTopicsByThread({});
     } catch (error) {
-      console.error("Error generating subtopics:", error);
+      // console.error("Error generating subtopics:", error);
+      toast.error("Error generating subtopics", {
+        position: "top-center",
+        autoClose: 1000,
+        theme: "colored",
+      });
       const errorMessage = {
         id: Date.now(),
         sender: "llm",
@@ -769,7 +774,7 @@ function Learn() {
         throw new Error(result.message || "Failed to generate quiz");
       }
     } catch (error) {
-      console.log(error);
+      // console.log(error);
       console.error("Error generating quiz:", error);
       setErrorMessage(
         `Failed to generate quiz for ${title}. Please try again.`

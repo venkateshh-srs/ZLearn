@@ -23,9 +23,22 @@ import { LearningHistory } from "./models/History.js";
 import { nanoid } from "nanoid";
 dotenv.config();
 const app = express();
+const allowedOrigins = [
+  "https://zlearn-zeta.vercel.app",
+  "http://localhost:5173",
+];
+
 app.use(
   cors({
-    origin: "https://zlearn-zeta.vercel.app",
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      } else {
+        return callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
   })
 );
@@ -733,10 +746,10 @@ async function getAIResponse(messages, currentTopic, topics, customPrompt) {
 }
 
 app.post("/generate-course", protect, async (req, res) => {
-  console.log("generating course");
+  // console.log("generating course");
   const topicName = req.body.topic;
   const publicId = req.body.publicId;
-  console.log("topicName: ", topicName);
+  // console.log("topicName: ", topicName);
 
   // check if the course is already present in the database
 
@@ -750,7 +763,7 @@ app.post("/generate-course", protect, async (req, res) => {
     }
 
     const newCourseData = response;
-    console.log("newCourseData: ", newCourseData);
+    // console.log("newCourseData: ", newCourseData);
     //get uer id from token
     const courseData = {
       userId: req.user._id,
@@ -778,7 +791,7 @@ app.post("/generate-course", protect, async (req, res) => {
     };
     if (publicId) {
       // update the existing course
-      console.log("publicId is there");
+      // console.log("publicId is there");
       await Course.updateOne(
         { userId: req.user._id, publicId: publicId },
         {
@@ -787,7 +800,7 @@ app.post("/generate-course", protect, async (req, res) => {
           },
         }
       );
-      console.log("updated existing course");
+      // console.log("updated existing course");
     } else {
       // create a new course
       courseData.publicId = nanoid(10);
@@ -816,7 +829,7 @@ app.post("/generate-course", protect, async (req, res) => {
 
     if (publicId) {
       // Update the existing course
-      console.log("updating existing course");
+      // console.log("updating existing course");
       await LearningHistory.updateOne(
         { userId: req.user._id, "courses.courseId": publicId },
         {
@@ -832,8 +845,8 @@ app.post("/generate-course", protect, async (req, res) => {
       // also update the course
     } else {
       // Push the new course
-      console.log("pushing new course");
-      console.log("courseId: ", courseData.publicId);
+      // console.log("pushing new course");
+      // console.log("courseId: ", courseData.publicId);
       await LearningHistory.findOneAndUpdate(
         { userId: req.user._id },
         {

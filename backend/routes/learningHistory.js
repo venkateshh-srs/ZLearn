@@ -33,7 +33,7 @@ router.get("/", protect, async (req, res) => {
 router.post("/courses", protect, async (req, res) => {
   const { courseId, title, totalTopics, completedTopics } = req.body;
   console.log("sai ram");
-//   console.log(req.body);
+  //   console.log(req.body);
 
   if (!courseId || !title || totalTopics === undefined) {
     return res.status(400).json({ message: "Missing required fields" });

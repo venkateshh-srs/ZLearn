@@ -44,7 +44,7 @@ export default function TopicInput({
       );
 
       const result = await res.json();
-      console.log(result);
+      // console.log(result);
 
       if (result.success) {
         // Optionally store in localStorage to survive refresh
