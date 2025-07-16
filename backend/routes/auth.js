@@ -30,11 +30,11 @@ router.post("/signup", async (req, res) => {
     });
     res.cookie("token", token, {
       httpOnly: true,
-      secure: false, // Only HTTPS in prod
-      sameSite: "Lax",
+      secure: true, // true on Vercel
+      sameSite: "None",
       maxAge: 24 * 60 * 60 * 1000, // 1 day
     });
-    console.log("token", token);
+    // console.log("token", token);
 
     res.status(201).json({
       message: "User created successfully",
@@ -72,8 +72,8 @@ router.post("/login", async (req, res) => {
 
     res.cookie("token", token, {
       httpOnly: true,
-      secure: false, // Only HTTPS in prod
-      sameSite: "Lax",
+      secure: true, // true on Vercel
+      sameSite: "None",
       maxAge: 24 * 60 * 60 * 1000, // 1 day
     });
     // console.log("log here");
@@ -90,12 +90,12 @@ router.post("/login", async (req, res) => {
 // @access  Private
 router.get("/me", protect, async (req, res) => {
   try {
-    console.log("me route");
+    // console.log("me route");
     const user = await User.findById(req.user.id).select("-password");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    console.log("user", user);
+    // console.log("user", user);
 
     res.status(200).json(user);
   } catch (error) {

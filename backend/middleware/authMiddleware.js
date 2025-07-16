@@ -1,10 +1,10 @@
 import jwt from "jsonwebtoken";
 
 export const protect = (req, res, next) => {
-  console.log("got here");
-  console.log(req.cookies);
+  // console.log("got here");
+  // console.log(req.cookies);
   const token = req.cookies.token; // 👈 Read from cookie
-  console.log(token);
+  // console.log(token);
   if (!token) return res.status(401).json({ message: "Unauthorized" });
 
   try {

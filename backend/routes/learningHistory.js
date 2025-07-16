@@ -9,10 +9,10 @@ const router = express.Router();
 // @access  Private
 router.get("/", protect, async (req, res) => {
   try {
-    console.log("sai ram 1");
+    // console.log("sai ram 1");
     // console.log(req.user._id);
     const history = await LearningHistory.findOne({ userId: req.user._id });
-    console.log("history: ", history);
+    // console.log("history: ", history);
     if (history) {
       // sort courses by lastAccessed date descending
       history.courses.sort((a, b) => b.lastAccessed - a.lastAccessed);
@@ -32,7 +32,7 @@ router.get("/", protect, async (req, res) => {
 // @access  Private
 router.post("/courses", protect, async (req, res) => {
   const { courseId, title, totalTopics, completedTopics } = req.body;
-  console.log("sai ram");
+  // console.log("sai ram");
   //   console.log(req.body);
 
   if (!courseId || !title || totalTopics === undefined) {
@@ -90,7 +90,7 @@ router.post("/courses", protect, async (req, res) => {
 // @route   DELETE /api/history/courses/:courseId
 // @access  Private
 router.delete("/courses/:courseId", protect, async (req, res) => {
-  console.log("deleting course");
+  // console.log("deleting course");
   try {
     const { courseId } = req.params;
     const history = await LearningHistory.findOne({ userId: req.user._id });
