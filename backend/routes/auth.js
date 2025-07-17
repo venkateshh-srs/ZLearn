@@ -3,6 +3,8 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { User } from "../models/User.js";
 import { protect } from "../middleware/authMiddleware.js";
+import { OAuth2Client } from "google-auth-library";
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const router = express.Router();
 
@@ -85,6 +87,55 @@ router.post("/login", async (req, res) => {
   }
 });
 
+router.post("/google", async (req, res) => {
+  const { token } = req.body;
+
+  try {
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const { sub: googleId, email, name } = payload;
+
+    // Check if user exists
+    let user = await User.findOne({ email });
+
+    // If not, create the user
+    if (!user) {
+      user = new User({
+        email,
+        googleId,
+        name, 
+        password: "", // leave empty for social login users
+      });
+      await user.save();
+    }
+    console.log("user id", user._id);
+    // Sign JWT
+    const jwtToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "1d",
+    });
+
+    // Set JWT cookie
+    res.cookie("token", jwtToken, {
+      httpOnly: true,
+      secure: true, // set true in prod
+      sameSite: "None",
+      maxAge: 24 * 60 * 60 * 1000,
+    });
+
+    res.status(200).json({
+      message: "Google login successful",
+      token: jwtToken,
+      userId: user._id,
+    });
+  } catch (err) {
+    console.error("Google login error:", err);
+    res.status(401).json({ message: "Invalid Google token" });
+  }
+});
 // @desc    Get user data
 // @route   GET /api/auth/me
 // @access  Private

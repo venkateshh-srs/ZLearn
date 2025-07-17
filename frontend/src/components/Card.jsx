@@ -6,29 +6,79 @@ import PopularTopics from "./PopularTopics";
 import ChatHistory from "./ChatHistory";
 import { useAuth } from "../contexts/AuthContext";
 import Modal from "./Modal";
-import { LogOutIcon, LogInIcon, UserPlusIcon } from "lucide-react";
+import { LogOutIcon, LogInIcon, UserPlusIcon, XIcon } from "lucide-react";
+import { GoogleLogin } from "@react-oauth/google";
+import axios from "axios";
+import { toast } from "react-toastify";
+import { useNavigate } from "react-router-dom";
 
 export default function Card() {
   const [input, setInput] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const { userId, logout, loading } = useAuth();
+  const { userId, logout, loading, login } = useAuth();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
     setIsLogoutModalOpen(false);
   };
 
+  const handleGoogleLogin = async (credentialResponse) => {
+    console.log(credentialResponse);
+
+    if (!credentialResponse.credential) {
+      toast.error("No credential received from Google", {
+        position: "top-center",
+        autoClose: 2000,
+        theme: "colored",
+      });
+      return;
+    }
+
+    try {
+      const { data } = await axios.post(
+        `${import.meta.env.VITE_BACKEND_URL}/api/auth/google`,
+        {
+          token: credentialResponse.credential,
+        },
+        {
+          withCredentials: true,
+        }
+      );
+      const { jwt, userId } = data;
+      console.log("userId", userId);
+      login(userId);
+      toast.success("Logged in successfully!", {
+        position: "top-center",
+        autoClose: 1200,
+        theme: "colored",
+      });
+      setIsAuthModalOpen(false); // Close auth modal on successful login
+      navigate("/");
+    } catch (error) {
+      console.error("Login error:", error);
+      toast.error(
+        `Failed to login: ${error.response?.data?.message || error.message}`,
+        {
+          position: "top-center",
+          autoClose: 2000,
+          theme: "colored",
+        }
+      );
+    }
+  };
+
   return (
     <div className="min-h-screen bg-blue-50">
+      {/* Top Navigation */}
       <div className="absolute top-4 right-4">
         {userId ? (
-          // logout lucid   
           <button
             onClick={() => setIsLogoutModalOpen(true)}
             title="Logout"
             className="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-800 shadow border border-gray-200 text-white hover:bg-gray-900 transition"
-          
           >
             Logout
             <LogOutIcon size={20} />
@@ -39,41 +89,31 @@ export default function Card() {
               Checking your session...
             </h1>
           </div>
-        ) : (
-          <div className="flex items-center space-x-2">
-            <Link
-              to="/login"
-              className="flex items-center gap-2 px-4 py-2 rounded-full  bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-medium shadow hover:from-indigo-700 hover:to-blue-600 transition"
-            >
-              <LogInIcon size={18} />
-              Login
-            </Link>
-            <Link
-              to="/signup"
-              className="flex items-center gap-2 px-4 py-2 rounded-full bg-white text-indigo-700 border border-indigo-200 font-medium shadow hover:bg-indigo-50 transition"
-            >
-              <UserPlusIcon size={18} />
-              Sign up
-            </Link>
-          </div>
-        )}
+        ) : null}
       </div>
-      <div className="flex flex-col items-center justify-start pt-16 sm:pt-24 pb-12 px-4">
+
+      <div className="flex flex-col items-center justify-start pt-28 pb-12 px-4">
         <div className="bg-white p-8 shadow-xl rounded-xl w-full max-w-2xl relative">
           <CardHeader />
-          <div className="mt-4">
+
+          {/* Main Content Area */}
+          <div className="mt-6">
             <TopicInput
               isGenerating={isGenerating}
               setIsGenerating={setIsGenerating}
               input={input}
               setInput={setInput}
+              setIsAuthModalOpen={setIsAuthModalOpen}
             />
           </div>
+
           <PopularTopics setInput={setInput} />
         </div>
+
         <ChatHistory isGenerating={isGenerating} />
       </div>
 
+      {/* Logout Modal */}
       <Modal
         isOpen={isLogoutModalOpen}
         onClose={() => setIsLogoutModalOpen(false)}
@@ -93,6 +133,79 @@ export default function Card() {
           >
             Logout
           </button>
+        </div>
+      </Modal>
+
+      {/* Authentication Modal */}
+      <Modal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)}>
+        <div className="text-center">
+          <div className="flex justify-end">
+            <button
+              onClick={() => setIsAuthModalOpen(false)}
+              className="text-gray-400 hover:text-gray-600 text-xl p-1 rounded-full hover:bg-gray-100 transition-colors"
+              aria-label="Close"
+            >
+              <XIcon size={20} />
+            </button>
+          </div>
+
+          <div className="mb-8">
+            <h3 className="text-2xl font-bold text-gray-800 mb-3">
+              Begin Your Learning Journey
+            </h3>
+            <p className="text-gray-600 text-sm leading-relaxed">
+              Create personalized courses, track your progress.
+            </p>
+          </div>
+
+          <div className="flex flex-col items-center space-y-6">
+            {/* Login and Signup Row */}
+            <div className="flex items-center space-x-3 flex-wrap justify-center">
+              <Link
+                to="/login"
+                className="flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-medium shadow-md hover:from-indigo-700 hover:to-blue-700 hover:shadow-lg transition-all duration-200"
+                onClick={() => setIsAuthModalOpen(false)}
+              >
+                <LogInIcon size={18} />
+                Login
+              </Link>
+              <Link
+                to="/signup"
+                className="flex items-center gap-2 px-6 py-3 rounded-full bg-white text-indigo-700 border-2 border-indigo-200 font-medium shadow-md hover:bg-indigo-50 hover:border-indigo-300 transition-all duration-200"
+                onClick={() => setIsAuthModalOpen(false)}
+              >
+                <UserPlusIcon size={18} />
+                Sign Up
+              </Link>
+            </div>
+
+            {/* Separator Line with "or" */}
+            <div className="flex items-center w-full max-w-sm">
+              <div className="flex-grow border-t border-gray-300"></div>
+              <span className="px-4 text-gray-500 text-sm font-medium bg-white">
+                or
+              </span>
+              <div className="flex-grow border-t border-gray-300"></div>
+            </div>
+
+            {/* Google OAuth Row */}
+            <div className="flex justify-center">
+              <GoogleLogin
+                text="continue_with"
+                shape="rectangular"
+                size="large"
+                width="300"
+                onSuccess={handleGoogleLogin}
+                onError={() => {
+                  toast.error("Failed to login", {
+                    position: "top-center",
+                    autoClose: 2000,
+                    theme: "colored",
+                  });
+                }}
+              />
+            </div>
+          </div>
         </div>
       </Modal>
     </div>
