@@ -242,7 +242,9 @@ const Quiz = ({
                 key={q.id}
                 className="p-3 bg-gray-50 rounded-md border border-gray-200"
               >
-                <p className={`font-medium text-[px] text-gray-800 mb-2`}>
+                <p
+                  className={`font-medium text-[${fontSize}px] text-gray-800 mb-2`}
+                >
                   <ReactMarkdown
                     remarkPlugins={[remarkMath, remarkGfm]}
                     rehypePlugins={[rehypeKatex]}
