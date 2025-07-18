@@ -59,7 +59,9 @@ const Login = () => {
       );
       // console.log(response);
       if (response.status === 200) {
-        login(response.data.token);
+        login(response.data.userId);
+        localStorage.setItem("token", response.data.token);
+
         // console.log(response.data.token);
         toast.success("Logged in successfully ", {
           position: "top-center",

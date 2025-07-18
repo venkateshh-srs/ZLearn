@@ -1,7 +1,7 @@
 import express from "express";
 import { LearningHistory } from "../models/History.js";
 import { protect } from "../middleware/authMiddleware.js";
-
+import dbConnect from "../lib/dbConnect.js";
 
 const router = express.Router();
 
@@ -18,6 +18,7 @@ router.post("/", protect, async (req, res) => {
   }
 
   try {
+    await dbConnect();
     // Check if chat history already exists for this topic
     let chatHistory = await LearningHistory.findOne({
       user: req.user.id,
@@ -53,7 +54,8 @@ router.post("/", protect, async (req, res) => {
 // @access  Private
 router.get("/:courseId/:topic", protect, async (req, res) => {
   try {
-    const { courseId, topic } = req.params;
+    await dbConnect();
+      const { courseId, topic } = req.params;
     const chatHistory = await ChatHistory.findOne({
       user: req.user.id,
       course: courseId,

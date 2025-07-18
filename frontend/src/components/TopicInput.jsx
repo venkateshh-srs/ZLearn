@@ -31,12 +31,14 @@ export default function TopicInput({
     setLoading(true);
     setError("");
     try {
+      console.log("input", input);
       const res = await fetch(
         `${import.meta.env.VITE_BACKEND_URL}/generate-course`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
           body: JSON.stringify({ topic: input }),
           credentials: "include",

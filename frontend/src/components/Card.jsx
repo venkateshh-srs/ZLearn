@@ -6,7 +6,14 @@ import PopularTopics from "./PopularTopics";
 import ChatHistory from "./ChatHistory";
 import { useAuth } from "../contexts/AuthContext";
 import Modal from "./Modal";
-import { LogOutIcon, LogInIcon, UserPlusIcon, XIcon } from "lucide-react";
+import {
+  LogOutIcon,
+  LogInIcon,
+  UserPlusIcon,
+  XIcon,
+  UserIcon,
+  Loader2,
+} from "lucide-react";
 import { GoogleLogin } from "@react-oauth/google";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -18,15 +25,20 @@ export default function Card() {
   const { userId, logout, loading, login } = useAuth();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [loggingIn, setLoggingIn] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    if (loggingOut) return;
+    await logout({ setLoggingOut });
     setIsLogoutModalOpen(false);
   };
 
   const handleGoogleLogin = async (credentialResponse) => {
-    console.log(credentialResponse);
+    if (loggingIn) return;
+    // console.log(credentialResponse);
+    console.log("logging in");
 
     if (!credentialResponse.credential) {
       toast.error("No credential received from Google", {
@@ -38,6 +50,7 @@ export default function Card() {
     }
 
     try {
+      setLoggingIn(true);
       const { data } = await axios.post(
         `${import.meta.env.VITE_BACKEND_URL}/api/auth/google`,
         {
@@ -47,7 +60,9 @@ export default function Card() {
           withCredentials: true,
         }
       );
-      const { jwt, userId } = data;
+      const { token, userId } = data;
+      console.log("jwt", token);
+      localStorage.setItem("token", token);
       console.log("userId", userId);
       login(userId);
       toast.success("Logged in successfully!", {
@@ -67,6 +82,8 @@ export default function Card() {
           theme: "colored",
         }
       );
+    } finally {
+      setLoggingIn(false);
     }
   };
 
@@ -78,19 +95,86 @@ export default function Card() {
           <button
             onClick={() => setIsLogoutModalOpen(true)}
             title="Logout"
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-800 shadow border border-gray-200 text-white hover:bg-gray-900 transition"
+            className={`flex items-center gap-2 px-4 py-2 rounded-full bg-gray-800 shadow border border-gray-200 text-white hover:bg-gray-900 transition ${
+              loggingOut ? "opacity-50 cursor-not-allowed" : ""
+            }`}
+            disabled={loggingOut}
           >
-            Logout
-            <LogOutIcon size={20} />
+            <div className="flex items-center gap-2">
+              {loggingOut ? "Logging out" : "Logout"}
+              {loggingOut && <Loader2 className="animate-spin" size={16} />}
+              <LogOutIcon size={20} />
+            </div>
           </button>
-        ) : loading ? (
+        ) : loading || loggingOut || loggingIn ? (
           <div className="space-x-2 flex items-center">
-            <h1 className="text-sm font-medium text-gray-500">
-              Checking your session...
-            </h1>
+            {loggingIn ? (
+              <h1 className="text-sm font-medium text-gray-500">
+                Logging in...
+              </h1>
+            ) : (
+              <h1 className="text-sm font-medium text-gray-500">
+                Checking your session...
+              </h1>
+            )}
           </div>
         ) : null}
       </div>
+      {/* if user is not logged in show signup, login and google login */}
+      {userId || loading || loggingIn ? null : (
+        <div className="absolute top-4 right-4 flex items-center gap-3">
+          {/* same as in modal */}
+          <button
+            onClick={() => navigate("/signup")}
+            className="flex items-center gap-2 px-4 py-2 rounded-full bg-white text-indigo-700 border-2 border-indigo-200 font-medium shadow-md hover:bg-indigo-50 hover:border-indigo-300 transition-all duration-200"
+          >
+            <UserPlusIcon size={20} />
+            Signup
+          </button>
+          <button
+            onClick={() => navigate("/login")}
+            className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-medium shadow-md hover:from-indigo-700 hover:to-blue-700 hover:shadow-lg transition-all duration-200"
+          >
+            <LogInIcon size={20} />
+            Login
+          </button>
+          <button className="">
+            {/* Responsive GoogleLogin: "Sign in" on small screens, "Continue with" on md+ */}
+            <span className="block md:hidden">
+              <GoogleLogin
+                text="signin"
+                shape="circle"
+                size="large"
+                width="100"
+                onSuccess={handleGoogleLogin}
+                onError={() => {
+                  toast.error("Failed to login", {
+                    position: "top-center",
+                    autoClose: 2000,
+                    theme: "colored",
+                  });
+                }}
+              />
+            </span>
+            <span className="hidden md:block">
+              <GoogleLogin
+                text="continue_with"
+                shape="circle"
+                size="large"
+                width="100"
+                onSuccess={handleGoogleLogin}
+                onError={() => {
+                  toast.error("Failed to login", {
+                    position: "top-center",
+                    autoClose: 2000,
+                    theme: "colored",
+                  });
+                }}
+              />
+            </span>
+          </button>
+        </div>
+      )}
 
       <div className="flex flex-col items-center justify-start pt-28 pb-12 px-4">
         <div className="bg-white p-8 shadow-xl rounded-xl w-full max-w-2xl relative">
@@ -123,15 +207,24 @@ export default function Card() {
         <div className="flex justify-end space-x-2">
           <button
             onClick={() => setIsLogoutModalOpen(false)}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 border border-transparent rounded-md hover:bg-gray-300"
+            className={`px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 border border-transparent rounded-md hover:bg-gray-300 ${
+              loggingOut ? "opacity-50 cursor-not-allowed" : ""
+            }`}
+            disabled={loggingOut}
           >
             Cancel
           </button>
           <button
             onClick={handleLogout}
-            className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700"
+            className={`px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 ${
+              loggingOut ? "opacity-50 cursor-not-allowed" : ""
+            }`}
+            disabled={loggingOut}
           >
-            Logout
+            <div className="flex items-center gap-2">
+              {loggingOut ? "Logging out" : "Logout"}
+              {loggingOut && <Loader2 className="animate-spin" size={16} />}
+            </div>
           </button>
         </div>
       </Modal>

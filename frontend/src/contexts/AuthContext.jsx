@@ -6,6 +6,7 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [userId, setUserId] = useState(null);
   const [loading, setLoading] = useState(true);
+ 
 
   // ✅ Check if user is authenticated by calling backend
   useEffect(() => {
@@ -13,6 +14,9 @@ export const AuthProvider = ({ children }) => {
       try {
         const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/me`, {
           credentials: "include", // 👈 send cookies
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
         });
 
         if (res.ok) {
@@ -38,12 +42,18 @@ export const AuthProvider = ({ children }) => {
     setUserId(id);
   };
 
-  const logout = async () => {
+  const logout = async ({ setLoggingOut }) => {
+    console.log("logging out");
+    setLoggingOut(true);
     try {
       await fetch(`${import.meta.env.VITE_BACKEND_URL}/logout`, {
         method: "POST",
         credentials: "include",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
       });
+      localStorage.removeItem("token");
       toast.success("Logged out successfully!", {
         position: "top-center",
         autoClose: 1200,
@@ -51,8 +61,10 @@ export const AuthProvider = ({ children }) => {
       });
     } catch (e) {
       console.error("Logout failed");
+    } finally {
+      setUserId(null);
+      setLoggingOut(false);
     }
-    setUserId(null);
   };
 
   return (

@@ -1,6 +1,7 @@
 import express from "express";
 import { LearningHistory } from "../models/History.js";
 import { protect } from "../middleware/authMiddleware.js";
+import dbConnect from "../lib/dbConnect.js";
 
 const router = express.Router();
 
@@ -9,7 +10,7 @@ const router = express.Router();
 // @access  Private
 router.get("/", protect, async (req, res) => {
   try {
-    // console.log("sai ram 1");
+    await dbConnect();
     // console.log(req.user._id);
     const history = await LearningHistory.findOne({ userId: req.user._id });
     // console.log("history: ", history);
@@ -31,6 +32,7 @@ router.get("/", protect, async (req, res) => {
 // @route   POST /api/history/courses
 // @access  Private
 router.post("/courses", protect, async (req, res) => {
+  await dbConnect();
   const { courseId, title, totalTopics, completedTopics } = req.body;
   // console.log("sai ram");
   //   console.log(req.body);
@@ -92,6 +94,7 @@ router.post("/courses", protect, async (req, res) => {
 router.delete("/courses/:courseId", protect, async (req, res) => {
   // console.log("deleting course");
   try {
+    await dbConnect();
     const { courseId } = req.params;
     const history = await LearningHistory.findOne({ userId: req.user._id });
 
@@ -117,7 +120,8 @@ router.delete("/courses/:courseId", protect, async (req, res) => {
 // @access  Private
 router.delete("/", protect, async (req, res) => {
   try {
-    const history = await LearningHistory.findOne({ userId: req.user._id });
+    await dbConnect();
+      const history = await LearningHistory.findOne({ userId: req.user._id });
 
     if (history) {
       history.courses = [];

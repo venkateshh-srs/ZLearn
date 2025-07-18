@@ -5,6 +5,7 @@ import { User } from "../models/User.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { OAuth2Client } from "google-auth-library";
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+import dbConnect from "../lib/dbConnect.js";
 
 const router = express.Router();
 
@@ -14,6 +15,7 @@ router.post("/signup", async (req, res) => {
   // console.log("Signup request received:", { email, password });
 
   try {
+    await dbConnect();
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser)
@@ -57,6 +59,7 @@ router.post("/login", async (req, res) => {
   // console.log("Login request received:", { email, password });
 
   try {
+    await dbConnect();
     // Find the user
     const user = await User.findOne({ email });
     if (!user) return res.status(401).json({ message: "Invalid credentials" });
@@ -81,7 +84,7 @@ router.post("/login", async (req, res) => {
     // console.log("log here");
     // console.log(res.cookie.token);
 
-    res.status(200).json({ message: "Login successful", token });
+    res.status(200).json({ message: "Login successful", token, userId: user._id });
   } catch (err) {
     res.status(500).json({ message: "Error logging in", error: err.message });
   }
@@ -91,7 +94,8 @@ router.post("/google", async (req, res) => {
   const { token } = req.body;
 
   try {
-    const ticket = await client.verifyIdToken({
+    await dbConnect();
+      const ticket = await client.verifyIdToken({
       idToken: token,
       audience: process.env.GOOGLE_CLIENT_ID,
     });
@@ -162,6 +166,7 @@ router.put("/settings", protect, async (req, res) => {
   const { lastActiveTopicId, customPrompt } = req.body;
 
   try {
+    await dbConnect();
     const user = await User.findById(req.user.id);
 
     if (user) {

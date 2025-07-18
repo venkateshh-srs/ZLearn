@@ -10,6 +10,7 @@ import { Loader2 } from "lucide-react";
 const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message }) => {
   if (!isOpen) return null;
 
+
   return (
     <div
       className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
@@ -194,6 +195,9 @@ function ChatHistory({ isGenerating }) {
       const response = await fetch(
         `${import.meta.env.VITE_BACKEND_URL}/api/history`,
         {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
           credentials: "include",
         }
       );
@@ -267,6 +271,9 @@ function ChatHistory({ isGenerating }) {
             }/api/history/courses/${courseId}`,
             {
               method: "DELETE",
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
               credentials: "include",
             }
           );
@@ -306,6 +313,9 @@ function ChatHistory({ isGenerating }) {
             `${import.meta.env.VITE_BACKEND_URL}/api/history`,
             {
               method: "DELETE",
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
               credentials: "include",
             }
           );
@@ -372,8 +382,11 @@ function ChatHistory({ isGenerating }) {
   return (
     <>
       {loading ? (
-        <div className="">
-          <h1 className="text-2xl font-bold">Loading...</h1>
+        <div className="flex flex-col justify-center items-center gap-2 pt-12">
+          <h1 className="text-2xl font-bold text-gray-600">
+            Loading History...
+          </h1>
+          <Loader2 className="animate-spin text-gray-600" size={20} />
         </div>
       ) : (
         <div

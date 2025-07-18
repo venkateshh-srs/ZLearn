@@ -1,6 +1,7 @@
 import express from "express";
 import { Course } from "../models/Course.js";
 import { protect } from "../middleware/authMiddleware.js";
+import dbConnect from "../lib/dbConnect.js";
 
 const router = express.Router();
 
@@ -15,6 +16,7 @@ router.post("/", protect, async (req, res) => {
   }
 
   try {
+    await dbConnect();
     const course = new Course({
       title,
       data,
@@ -34,6 +36,7 @@ router.post("/", protect, async (req, res) => {
 // @access  Private
 router.get("/", protect, async (req, res) => {
   try {
+    await dbConnect();
     const courses = await Course.find({ user: req.user.id });
     res.json(courses);
   } catch (error) {
@@ -47,6 +50,7 @@ router.get("/", protect, async (req, res) => {
 // @access  Private
 router.get("/:id", protect, async (req, res) => {
   try {
+    await dbConnect();
     const course = await Course.findById(req.params.id);
 
     if (course) {
@@ -70,7 +74,8 @@ router.put("/:id/complete", protect, async (req, res) => {
   const { subtopicId } = req.body;
 
   try {
-    const course = await Course.findById(req.params.id);
+    await dbConnect();
+      const course = await Course.findById(req.params.id);
 
     if (course) {
       if (course.user.toString() !== req.user.id) {

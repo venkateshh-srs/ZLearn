@@ -3,6 +3,7 @@ import Sidebar from "./Sidebar";
 import ChatInterface from "./ChatInterface";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
+import { Loader2 } from "lucide-react";
 
 function Learn() {
   const navigate = useNavigate();
@@ -27,7 +28,7 @@ function Learn() {
   const [thinkingMessageActive, setThinkingMessageActive] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const { publicId } = useParams();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   // console.log("publicId: ", publicId);
   // UI State
@@ -49,12 +50,16 @@ function Learn() {
   useEffect(() => {
     const fetchAndStoreCourse = async () => {
       try {
-        setLoading(true);
         let res;
         if (!isPublicView) {
           res = await axios.get(
             `${import.meta.env.VITE_BACKEND_URL}/get-course/${publicId}`,
-            { withCredentials: true }
+            {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
+              withCredentials: true,
+            }
           );
         } else {
           res = await axios.get(
@@ -225,6 +230,9 @@ function Learn() {
         `${import.meta.env.VITE_BACKEND_URL}/save-course-progress`,
         courseData,
         {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
           withCredentials: true,
         }
       );
@@ -392,6 +400,7 @@ function Learn() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
         body: JSON.stringify({
           formattedMessages,
@@ -402,6 +411,7 @@ function Learn() {
           publicId,
         }),
         credentials: "include",
+
         signal,
       });
 
@@ -660,7 +670,10 @@ function Learn() {
         `${import.meta.env.VITE_BACKEND_URL}/generate-course`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
           body: JSON.stringify({ topic: currentTopicName, publicId }),
           signal,
           credentials: "include",
@@ -808,18 +821,17 @@ function Learn() {
     setActiveQuiz(null);
   };
 
-  if (!currentTopicName) {
-    // Render a loading state or null while we determine the topic or redirect
-    return null;
-  }
-
-  return (
+  return loading ? (
+    <div className="flex justify-center items-center h-screen">
+      <div className="flex flex-col items-center gap-4">
+        <h1 className="text-2xl font-bold text-gray-600">
+          Fetching course details...
+        </h1>
+        <Loader2 className="animate-spin text-gray-600" size={20} />
+      </div>
+    </div>
+  ) : (
     <div>
-      {loading && (
-        <div className="flex justify-center items-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
-        </div>
-      )}
       <div className="chat-root flex h-screen overflow-y- bg-main-bg">
         <Sidebar
           isOpen={sidebarOpen}

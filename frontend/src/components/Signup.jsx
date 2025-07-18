@@ -68,7 +68,7 @@ const Signup = () => {
         }
       );
       if (response.status === 201) {
-        // console.log("response", response.data);
+        localStorage.setItem("token", response.data.token);
         login(response.data.userId);
         toast.success("Signup successful", {
           position: "top-center",

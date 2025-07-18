@@ -16,12 +16,13 @@ import { followupResponseSchema } from "./zodSchemas/followupResponseSchema.js";
 import { protect } from "./middleware/authMiddleware.js";
 import authRoutes from "./routes/auth.js";
 import learningHistoryRoutes from "./routes/learningHistory.js";
-import mongoose from "mongoose";
+import dbConnect from "./lib/dbConnect.js";
 import cookieParser from "cookie-parser";
 import { Course } from "./models/Course.js";
 import { LearningHistory } from "./models/History.js";
 import { nanoid } from "nanoid";
 dotenv.config();
+await dbConnect();
 const app = express();
 const allowedOrigins = [
   "https://zlearn-zeta.vercel.app",
@@ -49,15 +50,6 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/history", learningHistoryRoutes);
-
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => {
-    console.log("Connected to MongoDB");
-  })
-  .catch((err) => {
-    console.error("DB connection error:", err);
-  });
 
 const port = 1235;
 
@@ -748,6 +740,7 @@ async function getAIResponse(messages, currentTopic, topics, customPrompt) {
 app.post("/generate-course", protect, async (req, res) => {
   // console.log("generating course");
   const topicName = req.body.topic;
+  console.log("topicName", topicName);
   const publicId = req.body.publicId;
   // console.log("topicName: ", topicName);
 
