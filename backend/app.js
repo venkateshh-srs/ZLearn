@@ -1097,8 +1097,9 @@ app.post("/logout", protect, async (req, res) => {
   res.clearCookie("token", {
     httpOnly: true,
     secure: true, // Only in production (HTTPS)
-    sameSite: "Lax",
+    sameSite: "None",
   });
+
   res.json({ message: "Logged out successfully" });
 });
 

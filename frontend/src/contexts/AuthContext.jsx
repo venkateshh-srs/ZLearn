@@ -6,12 +6,13 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [userId, setUserId] = useState(null);
   const [loading, setLoading] = useState(true);
- 
 
   // ✅ Check if user is authenticated by calling backend
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        console.log("checking auth");
+        console.log("token", localStorage.getItem("token"));
         const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/me`, {
           credentials: "include", // 👈 send cookies
           headers: {
