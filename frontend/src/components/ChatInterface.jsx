@@ -70,7 +70,21 @@ const ChatInterface = ({
   const textAreaRef = useRef(null);
   const navigate = useNavigate();
   const [showRawText, setShowRawText] = useState(false);
-  const [imageCarousels, setImageCarousels] = useState({}); // { messageId: currentIndex }
+  const [imageCarousels, setImageCarousels] = useState({});
+  const topicColors = {
+    1: "text-indigo-600",
+    2: "text-purple-600",
+    3: "text-teal-600",
+    4: "text-fuchsia-600",
+    5: "text-cyan-600",
+    6: "text-orange-600",
+    7: "text-amber-600",
+    8: "text-lime-600",
+    9: "text-emerald-600",
+    10: "text-sky-600",
+    11: "text-rose-600",
+  };
+
   const Spinner = () => (
     <Loader size={16} className="text-dark-gray animate-spin" />
   );
@@ -316,6 +330,7 @@ const ChatInterface = ({
   };
 
   function replaceLatexInline(text) {
+    console.log("text", text);
     if (!text) return "";
     // text = text.replace(/[\u007f-\u0018-\u0019]/g, "");
     text = text.replace(/\$\$\s*([\s\S]*?)\s*\$\$/g, (_, inner) => {
@@ -366,8 +381,15 @@ const ChatInterface = ({
         </div>
         <h1 className="text-lg font-semibold text-dark-gray truncate px-2">
           {currentSubtopicName && isTopicSelected && !activeQuiz ? (
-            <span className="text-blue-500">
-              {topics.find((t) => t.id === currentChat.topicId)?.name}
+            <span
+              className={topicColors[currentChat.topicId] || "text-blue-500"}
+            >
+              {
+                topics.find((t) => {
+                  console.log(t.id, currentChat.topicId);
+                  return t.id === currentChat.topicId;
+                })?.name
+              }
             </span>
           ) : activeQuiz ? (
             <span className="text-sky-700"> Quiz: {activeQuiz.title}</span>
@@ -667,11 +689,14 @@ const ChatInterface = ({
                   </div>
                 </div>
                 {/* button to toggle raw text and markdown */}
+
                 {msg.sender === "llm" && (
                   <button
                     onClick={() => setShowRawText(!showRawText)}
                     className="text-xs text-gray-500 hover:text-gray-700 mt-2"
-                  ></button>
+                  >
+                    {showRawText ? "Show Markdown" : "Show Raw Text"}
+                  </button>
                 )}
 
                 {/* --- Related Topics Section moved inside the LLM message rendering --- */}

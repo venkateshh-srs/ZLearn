@@ -354,12 +354,37 @@ You are an expert educational content generator. Your job is to generate a struc
      - "data": array of 5–8 top-level topics
 
 1. **INTRODUCTION FIELD**
-   - Add a top-level "introduction" field — written in second-person ("you"/"your") perspective.
-   - Format:
-     - **Intro**: A short, engaging overview of the main course topic and why it matters to you.
-     - **What You Will Learn**: A separate paragraph (or bullet points) describing what *you* will explore and achieve in this course.
-   - At the end of the introduction, append this line in **bold markdown**:  
-     "**Select a topic from the sidebar to start your journey.**"
+   Create intoduction using markdown format.I am using react-markdown to render the text in frontend.So make sure to use markdown format with proper headings and lists.
+   #### 📝 Structure:
+
+      1. ### Intro  
+        Write a short, compelling overview that answers:  
+        - What is this course about?  
+        - Why is it important or valuable for the learner?  
+        - How will it help *you* grow personally or professionally?  
+        Use friendly, encouraging, and motivational language.
+
+      2. ### What You Will Learn  
+        List 4–6 bullet points that describe key takeaways.  
+        Each point should:  
+        - Start with a **verb**  
+        - Be concise and action-oriented  
+        - Focus on what *you* will achieve by the end  
+
+        **Examples:**  
+        - Design scalable APIs with industry best practices  
+        - Improve your confidence through practical speaking drills  
+        - Understand the psychology behind great storytelling  
+        - Build a real-world to-do app using React and Node.js  
+
+      3. ### Final Call to Action  
+        End with this line in **bold markdown**:
+
+        **Select a topic from the sidebar to start your journey.**
+      
+      
+
+
 
 2. **MANDATORY INTRODUCTION SUBTOPIC**
    - Every Topic **must begin** with a **standalone subtopic**:
@@ -617,7 +642,7 @@ $$
 h'(x) = \\lim_{\\Delta x \\to 0} \\frac{f(x + \\Delta x)g(x) - f(x)g(x + \\Delta x)}{\\Delta x}
 $$
 
-- IMPORTANT: **When there is currency give like this**: $\\text{\$10,000}$
+ - IMPORTANT: **When there is currency invloved never render it as math formuale.
 
 ### Image Generation Guidelines
 
@@ -974,7 +999,7 @@ app.post("/chat", protect, async (req, res) => {
     formattedMessages,
     currentTopicName,
     topics,
-    customPrompt
+    null
   );
   // console.log(result);
 
@@ -1050,7 +1075,7 @@ app.post("/fetch-subtopic", async (req, res) => {
         formattedMessages,
         currentTopicName,
         topics,
-        customPrompt
+        null
       );
       // console.log("result: ", result);
       let followupToSend = result.followup;
@@ -1098,6 +1123,7 @@ app.post("/logout", protect, async (req, res) => {
     httpOnly: true,
     secure: true, // Only in production (HTTPS)
     sameSite: "None",
+    //sameSite: "Lax", wont clear the cookie in chrome but in safari it will, read abt it
   });
 
   res.json({ message: "Logged out successfully" });

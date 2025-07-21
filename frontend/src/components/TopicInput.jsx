@@ -31,7 +31,7 @@ export default function TopicInput({
     setLoading(true);
     setError("");
     try {
-      console.log("input", input);
+      // console.log("input", input);
       const res = await fetch(
         `${import.meta.env.VITE_BACKEND_URL}/generate-course`,
         {
