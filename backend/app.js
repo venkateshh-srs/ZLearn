@@ -61,24 +61,29 @@ let totalTokens = 0;
 
 const modelConfig = {
   model: "gemini-2.5-flash",
-  safetySettings: [
-    {
-      category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-      threshold: HarmBlockThreshold.BLOCK_NONE,
-    },
-    {
-      category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-      threshold: HarmBlockThreshold.BLOCK_NONE,
-    },
-    {
-      category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-      threshold: HarmBlockThreshold.BLOCK_NONE,
-    },
-    {
-      category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-      threshold: HarmBlockThreshold.BLOCK_NONE,
-    },
-  ],
+  // safetySettings: [
+  //   {
+  //     category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+  //     threshold: HarmBlockThreshold.BLOCK_NONE,
+  //   },
+  //   {
+  //     category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+  //     threshold: HarmBlockThreshold.BLOCK_NONE,
+  //   },
+  //   {
+  //     category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+  //     threshold: HarmBlockThreshold.BLOCK_NONE,
+  //   },
+  //   {
+  //     category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+  //     threshold: HarmBlockThreshold.BLOCK_NONE,
+  //   },
+  // ],
+  // tools: [
+  //   {
+  //     googleSearch: {},
+  //   },
+  // ],
 };
 
 // Helper function to handle chat history for Gemini
@@ -354,7 +359,7 @@ You are an expert educational content generator. Your job is to generate a struc
      - "data": array of 5–8 top-level topics
 
 1. **INTRODUCTION FIELD**
-   Create intoduction using markdown format.I am using react-markdown to render the text in frontend.So make sure to use markdown format with proper headings and lists.
+  
    #### 📝 Structure:
 
       1. ### Intro  
@@ -367,15 +372,15 @@ You are an expert educational content generator. Your job is to generate a struc
       2. ### What You Will Learn  
         List 4–6 bullet points that describe key takeaways.  
         Each point should:  
-        - Start with a **verb**  
-        - Be concise and action-oriented  
-        - Focus on what *you* will achieve by the end  
+        - Be specific and concise - Clearly state what the learner will achieve
+        - Focus on learner outcomes
+        - Directly relate to the provided topics and subtopics
+        - Be actionable and measurable
 
-        **Examples:**  
-        - Design scalable APIs with industry best practices  
-        - Improve your confidence through practical speaking drills  
-        - Understand the psychology behind great storytelling  
-        - Build a real-world to-do app using React and Node.js  
+
+
+      **IMPORTANT:  Create "introduction" and "what you will learn" in markdown format. I am using react-markdown to render the text in frontend.So make sure to use markdown format with proper headings and lists.**
+
 
       3. ### Final Call to Action  
         End with this line in **bold markdown**:
@@ -409,7 +414,7 @@ You are an expert educational content generator. Your job is to generate a struc
    - The course must progress logically from beginner to advanced concepts.
 
 6. **FAILURE HANDLING**
-   - If the input is harmful, inappropriate, or too vague to generate a course:
+   - If the input is harmful, inappropriate,  or too vague to generate a course:
      - "success": false
      - "message": clear explanation of the issue
      - "data": []
@@ -422,6 +427,7 @@ Generate a course outline for: "${userTopic}"
   try {
     const result = await model.generateContent(prompt);
     const jsonText = result.response.text();
+    console.log(jsonText);
     const aiResponse = JSON.parse(jsonText);
     //console.log(aiResponse);
     inputTokens += result.response.usageMetadata.promptTokenCount;

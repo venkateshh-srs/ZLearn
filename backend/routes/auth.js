@@ -36,7 +36,7 @@ router.post("/signup", async (req, res) => {
       httpOnly: true,
       secure: true, // true on Vercel
       sameSite: "None",
-      maxAge: 24 * 60 * 60 * 1000, // 1 day
+      maxAge: 24 * 60 * 60 * 1000 * 3, // 1 day
     });
     // console.log("token", token);
 
@@ -79,12 +79,14 @@ router.post("/login", async (req, res) => {
       httpOnly: true,
       secure: true, // true on Vercel
       sameSite: "None",
-      maxAge: 24 * 60 * 60 * 1000, // 1 day
+      maxAge: 24 * 60 * 60 * 1000 * 3, // 1 day
     });
     // console.log("log here");
     // console.log(res.cookie.token);
 
-    res.status(200).json({ message: "Login successful", token, userId: user._id });
+    res
+      .status(200)
+      .json({ message: "Login successful", token, userId: user._id });
   } catch (err) {
     res.status(500).json({ message: "Error logging in", error: err.message });
   }
@@ -95,7 +97,7 @@ router.post("/google", async (req, res) => {
 
   try {
     await dbConnect();
-      const ticket = await client.verifyIdToken({
+    const ticket = await client.verifyIdToken({
       idToken: token,
       audience: process.env.GOOGLE_CLIENT_ID,
     });
@@ -111,7 +113,7 @@ router.post("/google", async (req, res) => {
       user = new User({
         email,
         googleId,
-        name, 
+        name,
         password: "", // leave empty for social login users
       });
       await user.save();
@@ -127,7 +129,7 @@ router.post("/google", async (req, res) => {
       httpOnly: true,
       secure: true, // set true in prod
       sameSite: "None",
-      maxAge: 24 * 60 * 60 * 1000,
+      maxAge: 24 * 60 * 60 * 1000 * 3,
     });
 
     res.status(200).json({

@@ -790,7 +790,7 @@ const ChatInterface = ({
 
       {isTopicSelected && messages.length > 0 && !activeQuiz && (
         <div className="mb-3 flex flex-wrap gap-2 items-center px-4 md:px-6 z-10">
-          <span className="text-sm text-medium-gray mr-1">Quick actions:</span>
+          <span className="text-sm text-medium-gray mr-1">Quick actions for current topic:</span>
           {[
             { type: "clarify", text: "Clarify", icon: HelpCircle },
             { type: "elaborate", text: "Elaborate", icon: Edit3 },
