@@ -11,7 +11,7 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import "react-toastify/dist/ReactToastify.css";
 
 const ProtectedRoute = ({ children }) => {
-  console.log("ProtectedRoute");
+  // console.log("ProtectedRoute");
   const { userId, loading } = useAuth();
 
   if (loading) return null;

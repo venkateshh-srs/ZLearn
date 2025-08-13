@@ -46,13 +46,15 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message }) => {
 };
 
 const CourseItem = ({ course, onContinue, onRemove }) => {
+  // console.log("course", course);
   const {
     title,
     lastAccessed,
     progress,
     topics,
     chatThreads,
-    completedSubtopics,
+    completedTopics,
+    totalSubtopics,
   } = course;
 
   const formattedDate = `Last accessed: ${new Intl.DateTimeFormat("en-US", {
@@ -63,22 +65,9 @@ const CourseItem = ({ course, onContinue, onRemove }) => {
     hour12: true,
   }).format(new Date(lastAccessed))}`;
 
-  const completedSubtopicsLength = completedSubtopics?.length || 0;
 
-  const totalSubtopics = (topics || []).reduce((acc, topic) => {
-    return (
-      acc +
-      (topic.subtopics || []).reduce((subAcc, subtopic) => {
-        if (subtopic?.subtopics?.length > 0) {
-          return subAcc + subtopic.subtopics.length;
-        } else {
-          return subAcc + 1;
-        }
-      }, 0)
-    );
-  }, 0);
 
-  const remainingTopics = totalSubtopics - completedSubtopicsLength;
+  const remainingTopics = totalSubtopics - completedTopics;
 
   return (
     <div className="bg-gray-50 p-4 rounded-lg border border-gray-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">

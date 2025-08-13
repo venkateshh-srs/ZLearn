@@ -11,8 +11,8 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        console.log("checking auth");
-        console.log("token", localStorage.getItem("token"));
+        // console.log("checking auth");
+        // console.log("token", localStorage.getItem("token"));
         const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/me`, {
           credentials: "include", // 👈 send cookies
           headers: {

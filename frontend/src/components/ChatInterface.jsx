@@ -28,6 +28,8 @@ import RelatedTopics from "./RelatedTopics";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { ToastContainer } from "react-toastify";
+import Zoom from "react-medium-image-zoom";
+import "react-medium-image-zoom/dist/styles.css";
 
 const ChatInterface = ({
   messages,
@@ -71,6 +73,7 @@ const ChatInterface = ({
   const navigate = useNavigate();
   const [showRawText, setShowRawText] = useState(false);
   const [imageCarousels, setImageCarousels] = useState({});
+  const [zoomedImage, setZoomedImage] = useState(null);
   const topicColors = {
     1: "text-indigo-600",
     2: "text-purple-600",
@@ -330,7 +333,7 @@ const ChatInterface = ({
   };
 
   function replaceLatexInline(text) {
-    console.log("text", text);
+    // console.log("text", text);
     if (!text) return "";
     // text = text.replace(/[\u007f-\u0018-\u0019]/g, "");
     text = text.replace(/\$\$\s*([\s\S]*?)\s*\$\$/g, (_, inner) => {
@@ -386,7 +389,7 @@ const ChatInterface = ({
             >
               {
                 topics.find((t) => {
-                  console.log(t.id, currentChat.topicId);
+                  // console.log(t.id, currentChat.topicId);
                   return t.id === currentChat.topicId;
                 })?.name
               }
@@ -601,35 +604,37 @@ const ChatInterface = ({
                             style={{ minHeight: "200px" }}
                           >
                             {msg.images.map((imgUrl, idx) => (
-                              <img
-                                key={imgUrl + idx}
-                                ref={(el) => {
-                                  if (!imageRefs.current[msg.id])
-                                    imageRefs.current[msg.id] = [];
-                                  imageRefs.current[msg.id][idx] = el;
-                                }}
-                                src={imgUrl}
-                                loading="lazy"
-                                alt={`LLM Generated Content ${idx + 1}`}
-                                className={`w-full h-auto my-4 object-contain absolute left-0 top-0 transition-opacity duration-500 ease-in-out
+                              <Zoom key={imgUrl + idx}>
+                                <img
+                                  key={imgUrl + idx}
+                                  ref={(el) => {
+                                    if (!imageRefs.current[msg.id])
+                                      imageRefs.current[msg.id] = [];
+                                    imageRefs.current[msg.id][idx] = el;
+                                  }}
+                                  src={imgUrl}
+                                  loading="lazy"
+                                  alt={`LLM Generated Content ${idx + 1}`}
+                                  className={`w-full h-auto my-4 object-contain absolute left-0 top-0 transition-opacity duration-500 ease-in-out
                                   ${
                                     (imageCarousels[msg.id] || 0) === idx
                                       ? "opacity-100 z-10 relative"
                                       : "opacity-0 z-0"
                                   }
                                 `}
-                                style={{
-                                  position:
-                                    (imageCarousels[msg.id] || 0) === idx
-                                      ? "relative"
-                                      : "absolute",
-                                  pointerEvents:
-                                    (imageCarousels[msg.id] || 0) === idx
-                                      ? "auto"
-                                      : "none",
-                                  transition: "opacity 0.5s ease-in-out",
-                                }}
-                              />
+                                  style={{
+                                    position:
+                                      (imageCarousels[msg.id] || 0) === idx
+                                        ? "relative"
+                                        : "absolute",
+                                    pointerEvents:
+                                      (imageCarousels[msg.id] || 0) === idx
+                                        ? "auto"
+                                        : "none",
+                                    transition: "opacity 0.5s ease-in-out",
+                                  }}
+                                />
+                              </Zoom>
                             ))}
                           </div>
                         </div>
@@ -657,11 +662,13 @@ const ChatInterface = ({
                         )}
                       </div>
                     ) : msg.image ? (
-                      <img
-                        src={msg.image}
-                        alt="LLM Image"
-                        className="w-full h-auto my-4 object-contain"
-                      />
+                      <Zoom>
+                        <img
+                          src={msg.image}
+                          alt="LLM Image"
+                          className="w-full h-auto my-4 object-contain"
+                        />
+                      </Zoom>
                     ) : null}
                     {/* keet the loader until the imageUrl is completely loaded */}
                     {isFetchingImage.loading && (
@@ -790,7 +797,9 @@ const ChatInterface = ({
 
       {isTopicSelected && messages.length > 0 && !activeQuiz && (
         <div className="mb-3 flex flex-wrap gap-2 items-center px-4 md:px-6 z-10">
-          <span className="text-sm text-medium-gray mr-1">Quick actions for current topic:</span>
+          <span className="text-sm text-medium-gray mr-1">
+            Quick actions for current topic:
+          </span>
           {[
             { type: "clarify", text: "Clarify", icon: HelpCircle },
             { type: "elaborate", text: "Elaborate", icon: Edit3 },

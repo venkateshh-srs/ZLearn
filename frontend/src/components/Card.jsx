@@ -38,7 +38,7 @@ export default function Card() {
   const handleGoogleLogin = async (credentialResponse) => {
     if (loggingIn) return;
     // console.log(credentialResponse);
-    console.log("logging in");
+    // console.log("logging in");
 
     if (!credentialResponse.credential) {
       toast.error("No credential received from Google", {
@@ -61,9 +61,9 @@ export default function Card() {
         }
       );
       const { token, userId } = data;
-      console.log("jwt", token);
+      // console.log("jwt", token);
       localStorage.setItem("token", token);
-      console.log("userId", userId);
+      // console.log("userId", userId);
       login(userId);
       toast.success("Logged in successfully!", {
         position: "top-center",
