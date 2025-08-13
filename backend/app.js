@@ -427,7 +427,7 @@ Generate a course outline for: "${userTopic}"
   try {
     const result = await model.generateContent(prompt);
     const jsonText = result.response.text();
-    console.log(jsonText);
+    // console.log(jsonText);
     const aiResponse = JSON.parse(jsonText);
     //console.log(aiResponse);
     inputTokens += result.response.usageMetadata.promptTokenCount;
@@ -568,7 +568,7 @@ const fetchDiagramFromPSE = async (query) => {
         safe: "high",
       },
     });
-    console.log(res.data.items?.[0]?.link);
+    // console.log(res.data.items?.[0]?.link);
     return res.data.items?.[0]?.link || null;
   } catch (error) {
     console.error("Image fetch failed:", error);
@@ -688,12 +688,12 @@ Strictly follow all of the above rules. Now, process the user query.`;
       result.response.functionCalls() &&
       result.response.functionCalls().length > 0
     ) {
-      console.log("function called");
+      // console.log("function called");
       // console.log(result.response.functionCalls());
 
       const call = result.response.functionCalls()[0];
       const { query } = call.args;
-      console.log("Function Query: ", query);
+      // console.log("Function Query: ", query);
       const imageUrl = await fetchDiagramFromPSE(query);
       // const imageUrl = "https://projects.wojtekmaj.pl/react-lifecycle-methods-diagram/ogimage.png";
       const imageContext = [
@@ -771,7 +771,7 @@ async function getAIResponse(messages, currentTopic, topics, customPrompt) {
 app.post("/generate-course", protect, async (req, res) => {
   // console.log("generating course");
   const topicName = req.body.topic;
-  console.log("topicName", topicName);
+  // console.log("topicName", topicName);
   const publicId = req.body.publicId;
   // console.log("topicName: ", topicName);
 
