@@ -61,29 +61,11 @@ let totalTokens = 0;
 
 const modelConfig = {
   model: "gemini-2.5-flash",
-  // safetySettings: [
-  //   {
-  //     category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-  //     threshold: HarmBlockThreshold.BLOCK_NONE,
-  //   },
-  //   {
-  //     category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-  //     threshold: HarmBlockThreshold.BLOCK_NONE,
-  //   },
-  //   {
-  //     category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-  //     threshold: HarmBlockThreshold.BLOCK_NONE,
-  //   },
-  //   {
-  //     category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-  //     threshold: HarmBlockThreshold.BLOCK_NONE,
-  //   },
-  // ],
-  // tools: [
-  //   {
-  //     googleSearch: {},
-  //   },
-  // ],
+  tools: [
+    {
+      googleSearch: {},
+    },
+  ],
 };
 
 // Helper function to handle chat history for Gemini
@@ -93,6 +75,19 @@ const buildGeminiChatHistory = (messages) => {
     parts: [{ text: msg.content }],
   }));
 };
+
+function cleanAndParse(raw) {
+  try {
+    const match = raw.match(/```json([\s\S]*?)```/);
+    if (match) {
+      return JSON.parse(match[1]);
+    }
+    return JSON.parse(raw); // fallback if it's pure JSON already
+  } catch (err) {
+    console.error("Failed to parse JSON:", err);
+    return null;
+  }
+}
 
 //generate quiz along with answers
 const generateQuiz = async ({
@@ -108,7 +103,7 @@ const generateQuiz = async ({
     ...modelConfig,
     // Use JSON mode for structured output
     generationConfig: {
-      responseMimeType: "application/json",
+      // responseMimeType: "application/json",
       responseSchema: {
         type: "object",
         properties: {
@@ -161,7 +156,7 @@ const generateQuiz = async ({
   });
 
   const chatHistory = messages ? messages : [];
-  const prompt = messages
+  let prompt = messages
     ? `You are a helpful assistant designed to generate quizzes. Based on the provided topic "${title}" and the preceding conversation, create a short quiz with ${questionCount} questions along with answers. Ensure the quiz is relevant to the topic and the previous conversation. Output a valid JSON object matching the requested schema.`
     : `You are an expert quiz creator. Your task is to generate a comprehensive quiz.
            **Topic:** "${title}"
@@ -173,7 +168,28 @@ const generateQuiz = async ({
            - Ensure the entire output is a single, valid JSON object that conforms to the schema. Do not include any text or markdown before or after the JSON.
            - Ensure there are exactly 4 options for each question.
            - Ensure the 'correct' field is the 0-based index of the correct answer.`;
+
   // console.log(prompt);
+  prompt += `You MUST return a JSON object that matches this schema exactly:
+
+     {
+       "success": true,                           // always a boolean
+       "message": "string description",           // a message about quiz status
+       "questions": [                             // array of question objects
+         {
+           "id": "string unique id",              // e.g. "q1", "q2"
+           "question": "string",                  // the question text
+           "options": [                           // exactly 4 strings
+             "option1", 
+             "option2", 
+             "option3", 
+             "option4"
+           ],
+           "correct": 0                           // integer, 0–3 (index of correct option)
+         }
+       ]
+     }
+  `;
   try {
     const result = await model.generateContent({
       contents: [...chatHistory, { role: "user", parts: [{ text: prompt }] }],
@@ -186,8 +202,10 @@ const generateQuiz = async ({
     // console.log("totalTokens: ", totalTokens);
 
     const jsonText = result.response.text();
-    const jsonData = JSON.parse(jsonText);
 
+    // console.log(jsonText);
+    const jsonData = cleanAndParse(jsonText);
+    console.log(jsonData);
     // Validate the data against the Zod schema as a final check
     const validation = QuizSchema.safeParse(jsonData);
     if (validation.success) {
@@ -294,7 +312,7 @@ async function generateCourseContents(userTopic) {
     ...modelConfig,
     // Use JSON mode for structured output
     generationConfig: {
-      responseMimeType: "application/json",
+      // responseMimeType: "application/json",
       responseSchema: {
         type: "object",
         properties: {
@@ -393,7 +411,7 @@ You are an expert educational content generator. Your job is to generate a struc
 
 2. **MANDATORY INTRODUCTION SUBTOPIC**
    - Every Topic **must begin** with a **standalone subtopic**:
-     - Title: "Introduction to {Topic Name}" (or "Overview of {Topic Name}" if Topic itself is an introduction)
+     - name: "Introduction to {Topic Name}" (or "Overview of {Topic Name}" if Topic itself is an introduction)
      - Must be the **first subtopic**.
      - Must have **no sub-subtopics**.
    - If the Topic itself is an introduction, this rule still applies.
@@ -426,10 +444,13 @@ Generate a course outline for: "${userTopic}"
 
   try {
     const result = await model.generateContent(prompt);
+    console.log("result:");
+    console.dir(result, { depth: null });
+
     const jsonText = result.response.text();
     // console.log(jsonText);
-    const aiResponse = JSON.parse(jsonText);
-    //console.log(aiResponse);
+    const aiResponse = cleanAndParse(jsonText);
+    console.dir(aiResponse, { depth: null });
     inputTokens += result.response.usageMetadata.promptTokenCount;
     outputTokens += result.response.usageMetadata.candidatesTokenCount;
     totalTokens += result.response.usageMetadata.totalTokenCount;
@@ -486,11 +507,12 @@ const getAllSubtopicNames = (topics) => {
 };
 
 async function getFollowupPrompts(messages) {
+  console.log("Follow up prompts");
   const model = genAI.getGenerativeModel({
     ...modelConfig,
     // Use JSON mode for structured output
     generationConfig: {
-      responseMimeType: "application/json",
+      // responseMimeType: "application/json",
       responseSchema: {
         type: "object",
         properties: {
@@ -515,38 +537,31 @@ async function getFollowupPrompts(messages) {
 
   // const chatHistory = buildGeminiChatHistory(messages);
 
-  const prompt = `You are an expert educational follow-up prompt generator. Your goal is to create logical, reasoning-based follow-up questions (8-15 words).
+  const prompt = `You are an expert educational follow-up prompt generator. Your goal is to create logical, reasoning-based follow-up questions based on the current user query and prvious reponses of the LLM (8-15 words) only.
     
-    **STRATEGY:** Use logical progression (deeper exploration, application, comparison, etc.). Mix question types (Why/How, What-if, etc.).
     **LOGIC FOR "show":** Set "show" to true only if the conversation is educational and substantive with clear next steps for learning.
     **OUTPUT FORMAT:** Return a valid JSON object matching the schema, with a 'show' boolean and an array of 3-4 'prompts'.
 
-    Based on our conversation, generate the most logical follow-up prompts.`;
+    Based on our conversation, generate the most logical follow-up prompts in this JSON format only.
+    {
+    "show": true|false,
+    "prompts": ["prompt1", "prompt2", "prompt3", "prompt4"]
+    }
+     `;
 
   try {
     const result = await model.generateContent({
       contents: [...messages, { role: "user", parts: [{ text: prompt }] }],
     });
-    let inputTokens = result.response.usageMetadata.promptTokenCount;
-    let outputTokens = result.response.usageMetadata.candidatesTokenCount;
-    let totalTokens = result.response.usageMetadata.totalTokenCount;
-    let thoughtTokens = result.response.usageMetadata.thoughtsTokenCount;
-    // console.log("followup inputTokens: ", inputTokens);
-    // console.log("followup outputTokens: ", outputTokens);
-    // console.log("followup thoughtTokens: ", thoughtTokens);
-    // console.log("followup totalTokens: ", totalTokens);
 
     const jsonText = result.response.text();
-    const jsonData = JSON.parse(jsonText);
-    // console.log(jsonData);
-    // const validation = followupResponseSchema.safeParse(jsonData);
-    // console.log(validation);
-    // if (validation.success) {
-    //   // console.log(validation.data);
-    //     return validation.data;
-    // }
+    console.log("Follow up prompts: ", jsonText);
 
-    return jsonData;
+    // const jsonData = JSON.parse(jsonText);
+
+    const parsedData = cleanAndParse(jsonText);
+
+    return parsedData;
   } catch (error) {
     console.error("Error generating follow-up prompts:", error);
     return { show: false, prompts: [] };
@@ -568,7 +583,8 @@ const fetchDiagramFromPSE = async (query) => {
         safe: "high",
       },
     });
-    // console.log(res.data.items?.[0]?.link);
+    console.log("response: ", res.data);
+    console.log("Image fetched:", res.data.items?.[0]?.link);
     return res.data.items?.[0]?.link || null;
   } catch (error) {
     console.error("Image fetch failed:", error);
@@ -680,6 +696,9 @@ Strictly follow all of the above rules. Now, process the user query.`;
     // console.log("answer inputTokens: ", inputTokens);
     // console.log("answer outputTokens: ", outputTokens);
     // console.log("answer totalTokens: ", totalTokens);
+    // log reuslt dir
+    console.log("result:");
+    console.dir(result, { depth: null });
     const responseText = result.response.text();
     // console.log("responseText: " , responseText);
     // console.log(result.response.functionCalls());
@@ -789,6 +808,12 @@ app.post("/generate-course", protect, async (req, res) => {
     const newCourseData = response;
     // console.log("newCourseData: ", newCourseData);
     //get uer id from token
+    // remove arrays from newCourseDatat inroduction
+    function removeArraysFromText(text) {
+      // Regex matches arrays like [1, 3, 5] or [12, 24]
+      return text.replace(/\[\s*\d+(?:\s*,\s*\d+)*\s*\]/g, "");
+    }
+
     const courseData = {
       userId: req.user._id,
       title: newCourseData.title,
@@ -798,7 +823,7 @@ app.post("/generate-course", protect, async (req, res) => {
           {
             id: 1,
             sender: "llm",
-            text: newCourseData.introduction,
+            text: removeArraysFromText(newCourseData.introduction),
             thinking: false,
           },
         ],
@@ -959,6 +984,7 @@ app.post("/save-course-progress", protect, async (req, res) => {
   try {
     const { publicId, ...rest } = req.body;
     // console.dir(rest, { depth: null });
+    const encodeKey = (key) => key.replace(/\./g, "__");
 
     const updated = await Course.findOneAndUpdate(
       { publicId, userId: req.user._id },
@@ -1198,9 +1224,9 @@ app.post("/get-another-image", async (req, res) => {
 
   const model = genAI.getGenerativeModel(modelConfig);
   const chatHistory = messages;
-  // console.log(chatHistory);
+  console.dir(chatHistory, { depth: null });
 
-  const prompt = `Based on the following conversation history, generate a new, but relevant search query for a diagram or image. The user wants another image that is different from any previous one. Provide only the search query which is then given to google search engine to get image. So give the query as a string, no extra text. Make sure the query should be different from the previous one's in the chat history but should be relevant to the topic.`;
+  const prompt = `Based on the following conversation history, generate a new, but relevant search query for a educational diagram or an image. The user wants another image that is different from any previous one. Provide only the search query which is then given to google search engine to get image it must be below 12 words. So give the query as a string, no extra text. Make sure the query should be different from the previous one's in the provided chat context but should be relevant to the topic which should give diagramatical educational image.`;
 
   try {
     const result = await model.generateContent({
@@ -1222,8 +1248,36 @@ app.post("/get-another-image", async (req, res) => {
         .status(500)
         .json({ error: "Failed to fetch image from external service." });
     }
+    const imageContext = [
+      {
+        role: "model",
+        parts: [
+          {
+            functionCall: {
+              name: "fetch_educational_image",
+              args: {
+                query: imageQuery,
+              },
+            },
+          },
+        ],
+      },
+      {
+        role: "function",
+        parts: [
+          {
+            functionResponse: {
+              name: "fetch_educational_image",
+              response: {
+                content: imageUrl,
+              },
+            },
+          },
+        ],
+      },
+    ];
 
-    res.json({ imageUrl });
+    res.json({ imageUrl, imageContext });
   } catch (error) {
     console.error("Error in /get-another-image:", error);
     res.status(500).json({ error: "An unexpected error occurred." });

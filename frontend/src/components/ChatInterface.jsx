@@ -278,6 +278,7 @@ const ChatInterface = ({
     navigate("/");
   };
 
+
   const getInitialLLMMessage = () => {
     if (
       messages.length === 0 &&
@@ -322,9 +323,10 @@ const ChatInterface = ({
           // }
         }
       });
+      const encodeKey = (key) => key.replace(/\./g, "__");
       handleGenerateQuiz({
         quizType: "subtopic",
-        id: currentChat.subtopicId,
+        id: encodeKey(currentChat.subtopicId),
         title: currentSubtopicName,
         messages: formattedMessages,
         questionCount: 10,

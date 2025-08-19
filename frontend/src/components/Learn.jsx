@@ -129,26 +129,15 @@ function Learn() {
     }
 
     const messagesForContext = [];
-    for (const msg of currentMessages) {
-      if (msg.sender === "user") {
-        messagesForContext.push({
-          role: "user",
-          parts: [{ text: msg.text }],
-        });
-      } else if (msg.sender === "llm") {
-        messagesForContext.push({
-          role: "model",
-          parts: [{ text: msg.text }],
-        });
+    // instead of all messages upto that message id only give the current response as conte
 
-        if (msg.imageContext && msg.imageContext.length > 0) {
-          messagesForContext.push(...msg.imageContext);
-        }
-      }
-
-      if (msg.id === messageId) {
-        break; // Stop iterating once we reach the target message
-      }
+    messagesForContext.push({
+      role: "model",
+      parts: [{ text: currentMessages[messageIndex].text }],
+    });
+    // if it has any image context then send that also
+    if (currentMessages[messageIndex].imageContext) {
+      messagesForContext.push(...currentMessages[messageIndex].imageContext);
     }
 
     try {
@@ -166,8 +155,9 @@ function Learn() {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-
-      const { imageUrl } = await response.json();
+      // console.log(await response.json());
+      const { imageUrl, imageContext } = await response.json();
+      console.log(imageUrl, imageContext);
 
       setChatThreads((prevChatThreads) => {
         const newChatThreads = { ...prevChatThreads };
@@ -178,8 +168,15 @@ function Learn() {
           const updatedMessage = { ...thread[msgIndex] };
           if (updatedMessage.images) {
             updatedMessage.images = [...updatedMessage.images, imageUrl];
+            updatedMessage.imageContext = [
+              ...updatedMessage.imageContext,
+              ...imageContext,
+            ];
+            console.dir(updatedMessage.imageContext, { depth: null });
           } else if (updatedMessage.image) {
             updatedMessage.images = [updatedMessage.image, imageUrl];
+            updatedMessage.imageContext = [...imageContext];
+            // console.dir(updatedMessage.imageContext, { depth: null });
             delete updatedMessage.image;
           }
           thread[msgIndex] = updatedMessage;
@@ -781,7 +778,9 @@ function Learn() {
           score: 0,
         };
         // console.log(quizResult);
-        setQuizzes((prev) => ({ ...prev, [id]: quizResult }));
+        if (quizType !== "subtopic") {
+          setQuizzes((prev) => ({ ...prev, [id]: quizResult }));
+        }
         setActiveQuiz({ type: quizType, id, title, data: quizResult });
       } else {
         throw new Error(result.message || "Failed to generate quiz");
